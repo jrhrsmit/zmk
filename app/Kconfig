@@ -233,6 +233,10 @@ config ZMK_RGB_UNDERGLOW_BRT_START
 	int "RGB underglow start brightness value from 0-100"
 	default 100
 
+config ZMK_RGB_UNDERGLOW_BRT_MAX
+	int "RGB underglow maximum brightness value from 0-100"
+	default 100
+
 config ZMK_RGB_UNDERGLOW_SPD_START
 	int "RGB underglow start animation speed value from 1-5"
 	default 3

@@ -401,8 +401,8 @@ int zmk_rgb_underglow_change_brt(int direction) {
 
     state.brightness += direction * CONFIG_ZMK_RGB_UNDERGLOW_BRT_STEP;
 
-    if (state.brightness > 100) {
-        state.brightness = 100;
+    if (state.brightness > CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX) {
+        state.brightness = CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX;
     }
 
     return zmk_rgb_underglow_save_state();
