@@ -37,12 +37,10 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef NRF_DRV_CSENSE_H__
-#define NRF_DRV_CSENSE_H__
+#pragma once
 
 #include <stdint.h>
-#include "sdk_errors.h"
-#include "app_timer.h"
+#include <nrfx.h>
 
 /** @file
  *
@@ -98,14 +96,14 @@ typedef void (* nrf_drv_csense_event_handler_t) (nrf_drv_csense_evt_t * p_event_
  *
  * @sa nrf_drv_csense_channels_enable
  */
-ret_code_t nrf_drv_csense_init(nrf_drv_csense_config_t const * p_config, nrf_drv_csense_event_handler_t event_handler);
+nrfx_err_t nrf_drv_csense_init(nrf_drv_csense_config_t const * p_config, nrf_drv_csense_event_handler_t event_handler);
 
 /**
  * @brief Function for unintializing the capacitive sensor. Clears the mask of enabled channels.
  *
  * @return Values returned by @ref nrf_drv_ppi_channel_free.
  */
-ret_code_t nrf_drv_csense_uninit(void);
+nrfx_err_t nrf_drv_csense_uninit(void);
 
 /**
  * @brief Function for enabling analog channels for the capacitive sensor.
@@ -136,7 +134,7 @@ uint16_t nrf_drv_csense_channel_read(uint8_t csense_channel);
  * @retval      NRF_ERROR_BUSY                  If the module was busy or SAADC module is in use and was busy.
  * @retval      NRF_SUCCESS                     If the measurement was triggered successfully.
  */
-ret_code_t nrf_drv_csense_sample(void);
+nrfx_err_t nrf_drv_csense_sample(void);
 
 /**
  * @brief Function for checking if the module is busy.
@@ -147,4 +145,3 @@ bool nrf_drv_csense_is_busy(void);
 
 /** @} */
 
-#endif //NRF_DRV_CSENSE_H__

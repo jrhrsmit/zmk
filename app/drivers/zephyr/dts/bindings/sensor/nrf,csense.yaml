@@ -1,0 +1,16 @@
+description: |
+  Sensor driver for the nRF5 capacitive sensor
+
+compatible: "nordic,csense"
+
+properties:
+  label:
+    type: string
+    required: true
+  gpios:
+    type: phandle-array
+    required: false
+      #io-channels:
+      #  type: phandle-array
+      #  description: The pin that is connected to the capacitive button
+      #  required: true
