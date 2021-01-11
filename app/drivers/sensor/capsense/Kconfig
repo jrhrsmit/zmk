@@ -1,0 +1,12 @@
+# Copyright (c) 2020 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+menuconfig CAPSENSE
+	bool "Capacitive sensor"
+	depends on ADC && GPIO
+	help
+	  Enable driver for capacitive sensors
+
+if CAPSENSE
+
+endif # CAPSENSE
