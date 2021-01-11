@@ -10,19 +10,27 @@
 #include <drivers/gpio.h>
 #include <sys/util.h>
 #include <stdint.h>
+#include <nrfx_saadc.h>
 
-struct csense_config {
+struct capsense_config {
     const char *label;
     const uint32_t pin;
     const uint8_t flags;
     const uint16_t threshold;
+    
+    const char *adc_label;
+    uint8_t adc_channel;
 };
 
-struct csense_data {
+struct capsense_data {
     const struct device *gpio_dev;
     uint8_t ab_state;
     int8_t pulses;
     int8_t ticks;
     int8_t delta;
+    
+    const struct device *adc;
+    nrfx_saadc_channel_t ch_cfg;
+    nrf_saadc_value_t raw[16];
 };
 
