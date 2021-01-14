@@ -11,7 +11,7 @@
 #include <sys/util.h>
 #include <stdint.h>
 #include <nrfx_saadc.h>
-#include <nrfx_comp.h>
+#include <nrfx_lpcomp.h>
 
 struct capsense_config {
     const char *label;
@@ -31,10 +31,8 @@ struct capsense_data {
     int8_t delta;
     
     const struct device *adc;
-    nrfx_saadc_channel_t ch_cfg;
-    nrf_saadc_value_t raw[16];
     
-    nrfx_comp_config_t comp_cfg;
+    nrfx_lpcomp_config_t comp_cfg;
 
     struct k_work work;
 };
