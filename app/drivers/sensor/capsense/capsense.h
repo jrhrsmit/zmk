@@ -24,6 +24,7 @@ struct capsense_config {
 };
 
 struct capsense_data {
+    const struct device *device_struct;
     const struct device *gpio_dev;
     uint8_t ab_state;
     int8_t pulses;
@@ -34,6 +35,6 @@ struct capsense_data {
     
     nrfx_lpcomp_config_t comp_cfg;
 
-    struct k_work work;
+    struct k_delayed_work work;
 };
 
