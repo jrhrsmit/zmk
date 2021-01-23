@@ -40,7 +40,7 @@ static void capsense_nrfx_timer_callback(nrf_timer_event_t event_type, void *p_c
 }
 
 static void capsense_nrfx_lpcomp_callback(nrf_lpcomp_event_t event_type) {
-    // LOG_DBG("COMP Int: event %d", event_type);
+    //LOG_DBG("COMP Int: event %d", event_type);
     // while(true){}
     // nrf_lpcomp_event_clear(NRF_LPCOMP, event_type);
 }
@@ -72,6 +72,8 @@ static int comp_init(const struct device *dev) {
 
     // comparator
     drv_data->comp_cfg = (nrfx_lpcomp_config_t)NRFX_LPCOMP_DEFAULT_CONFIG(cfg->adc_channel);
+    drv_data->comp_cfg.hal.reference = NRF_LPCOMP_REF_SUPPLY_2_8;
+    drv_data->comp_cfg.hal.detection = NRF_LPCOMP_DETECT_DOWN;
     if ((err = nrfx_lpcomp_init(&drv_data->comp_cfg, capsense_nrfx_lpcomp_callback)) !=
         NRFX_SUCCESS) {
         LOG_ERR("Could not initialize LPCOMP module (%X)", err - NRFX_ERROR_BASE_NUM);
@@ -113,31 +115,34 @@ static void capsense_handler(struct k_timer *exp) {
 static uint32_t capsense_capacitance(struct device *dev) {
     // charge capacitor
     gpio_pullup(5, 0, true);
-    k_sleep(K_MSEC(1));
+    //k_sleep(K_USEC(10));
+    //k_sleep(1);
     // start timer
     nrfx_timer_clear(&capsense_nrfx_timer);
     nrfx_timer_enable(&capsense_nrfx_timer);
     // start comparator
     nrfx_lpcomp_enable();
-    k_sleep(K_USEC(20));
+    // lpcomp needs some time to startup
+    k_busy_wait(50);
     // let the cap discharge
     gpio_pullup(5, 0, false);
-    // k_sleep(K_USEC(100));
-    k_sleep(K_MSEC(1));
+    // sleep while the LPCOMP event stops the timer via PPI
+    k_sleep(K_USEC(500));
     nrfx_lpcomp_disable();
     // report
     nrfx_timer_pause(&capsense_nrfx_timer);
     return nrfx_timer_capture(&capsense_nrfx_timer, NRF_TIMER_CC_CHANNEL0);
 }
 
-#define BUF_SZ 16
-#define SAMPLE_SZ 5
+#define BUF_SZ 8
+#define SAMPLE_SZ 64
+#define THRESHOLD 10
 static void capsense_work(struct k_work *item) {
     // const struct capsense_config *cfg = sdev->config;
     static uint32_t val[BUF_SZ] = {0};
     static uint32_t sample[SAMPLE_SZ] = {0};
     static uint32_t idx = 0;
-    uint32_t low = 0xFFFFFFFF, high = 0, sum = 0, avg;
+    uint32_t low = 0xFFFFFFFF, high = 0, sum = 0, avg, sample_avg = 0;
     // maybe use IIR filter?
     for (int i = 0; i < BUF_SZ; i++) {
         if (val[i] < low)
@@ -159,12 +164,17 @@ static void capsense_work(struct k_work *item) {
             }
         }
     }
-    //for(int i=0; i<SAMPLE_SZ; i++) {
-    //    LOG_DBG("\tsample %d: %d", i, sample[i]);
-    //}
-    val[idx] = sample[SAMPLE_SZ/2];
-    if (val[idx] > avg + 50)
+    // calculate average excluding top and bottom 10% of samples
+    for(int i=SAMPLE_SZ/10; i<SAMPLE_SZ*9/10; i++) {
+        sample_avg += sample[i];
+    }
+    sample_avg = sample_avg / ((SAMPLE_SZ*9/10) - (SAMPLE_SZ/10));
+    //val[idx] = sample[SAMPLE_SZ/2];
+    val[idx] = sample_avg;
+    if (val[idx] > avg + THRESHOLD)
         LOG_DBG("Presence detected (%d (avg: %d))", val[idx], avg);
+    else
+        LOG_DBG("(%d (avg: %d))", val[idx], avg);
     if (++idx > BUF_SZ - 1)
         idx = 0;
 }
@@ -184,7 +194,7 @@ static int capsense_init(const struct device *dev) {
     k_work_init(&drv_data->work, capsense_work);
     // timers
     k_timer_init(&capsense_timer, capsense_handler, NULL);
-    k_timer_start(&capsense_timer, K_SECONDS(3), K_MSEC(250));
+    k_timer_start(&capsense_timer, K_SECONDS(3), K_MSEC(500));
 
     LOG_DBG("Capsense initialized");
     LOG_DBG("GPIO pin: %d, ADC pin: %d", cfg->pin, cfg->adc_channel);
