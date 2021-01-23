@@ -115,21 +115,19 @@ static void capsense_handler(struct k_timer *exp) {
 static uint32_t capsense_capacitance(struct device *dev) {
     // charge capacitor
     gpio_pullup(5, 0, true);
-    //k_sleep(K_USEC(10));
-    //k_sleep(1);
     // start timer
     nrfx_timer_clear(&capsense_nrfx_timer);
-    nrfx_timer_enable(&capsense_nrfx_timer);
     // start comparator
     nrfx_lpcomp_enable();
     // lpcomp needs some time to startup
-    k_busy_wait(50);
+    k_sleep(K_USEC(50));
+    nrfx_timer_enable(&capsense_nrfx_timer);
     // let the cap discharge
     gpio_pullup(5, 0, false);
     // sleep while the LPCOMP event stops the timer via PPI
     k_sleep(K_USEC(500));
     nrfx_lpcomp_disable();
-    // report
+    // stop the timer if it somehow didn't trigger to save power
     nrfx_timer_pause(&capsense_nrfx_timer);
     return nrfx_timer_capture(&capsense_nrfx_timer, NRF_TIMER_CC_CHANNEL0);
 }
@@ -169,7 +167,6 @@ static void capsense_work(struct k_work *item) {
         sample_avg += sample[i];
     }
     sample_avg = sample_avg / ((SAMPLE_SZ*9/10) - (SAMPLE_SZ/10));
-    //val[idx] = sample[SAMPLE_SZ/2];
     val[idx] = sample_avg;
     if (val[idx] > avg + THRESHOLD)
         LOG_DBG("Presence detected (%d (avg: %d))", val[idx], avg);
@@ -194,7 +191,7 @@ static int capsense_init(const struct device *dev) {
     k_work_init(&drv_data->work, capsense_work);
     // timers
     k_timer_init(&capsense_timer, capsense_handler, NULL);
-    k_timer_start(&capsense_timer, K_SECONDS(3), K_MSEC(500));
+    k_timer_start(&capsense_timer, K_SECONDS(3), K_MSEC(250));
 
     LOG_DBG("Capsense initialized");
     LOG_DBG("GPIO pin: %d, ADC pin: %d", cfg->pin, cfg->adc_channel);
