@@ -23,14 +23,11 @@
 #define CAPSENSE_STACK_SIZE 128
 #define CAPSENSE_PRIORITY 100
 
-
 LOG_MODULE_REGISTER(capsense, CONFIG_SENSOR_LOG_LEVEL);
 K_THREAD_STACK_DEFINE(capsense_stack_area, CAPSENSE_STACK_SIZE);
 struct k_work_q capsense_work_q;
 
 nrfx_timer_t capsense_nrfx_timer = NRFX_TIMER_INSTANCE(3);
-
-static const struct sensor_driver_api capsense_api = {};
 
 static void capsense_nrfx_timer_callback(nrf_timer_event_t event_type, void *p_context) {}
 
@@ -92,7 +89,7 @@ static int comp_init(const struct device *dev) {
     return 0;
 }
 
-static uint32_t capsense_capacitance(struct device *dev) {
+static uint32_t capsense_capacitance(const struct device *dev) {
     // charge capacitor
     gpio_pullup(5, 0, true);
     // start timer
@@ -115,13 +112,16 @@ static uint32_t capsense_capacitance(struct device *dev) {
 #define BUF_SZ 8
 #define SAMPLE_SZ 64
 #define THRESHOLD 10
+
+static int capsense_sample_fetch(const struct device *dev, enum sensor_channel chan) { return 0; }
+
 static void capsense_work(struct k_work *item) {
+    struct capsense_data *const drv_data = CONTAINER_OF(item, struct capsense_data, work);
     static uint32_t val[BUF_SZ] = {0};
     static uint32_t sample[SAMPLE_SZ] = {0};
     static uint32_t idx = 0;
     uint32_t low = 0xFFFFFFFF, high = 0, sum = 0, avg, sample_avg = 0;
-    struct capsense_data *const drv_data = CONTAINER_OF(item, struct capsense_data, work);
-    struct device *const dev = drv_data->device_struct;
+    const struct device *dev = drv_data->dev;
     // maybe use IIR filter?
     for (int i = 0; i < BUF_SZ; i++) {
         if (val[i] < low)
@@ -149,19 +149,44 @@ static void capsense_work(struct k_work *item) {
     }
     sample_avg = sample_avg / ((SAMPLE_SZ * 9 / 10) - (SAMPLE_SZ / 10));
     val[idx] = sample_avg;
-    if (val[idx] > avg + THRESHOLD)
+    drv_data->value = sample_avg;
+    if (val[idx] > avg + THRESHOLD) {
         LOG_DBG("Presence detected (%d (avg: %d))", val[idx], avg);
-    else
-        LOG_DBG("(%d (avg: %d))", val[idx], avg);
+        drv_data->presence = true;
+        drv_data->handler(drv_data->dev, drv_data->trigger);
+    } else {
+        // LOG_DBG("(%d (avg: %d))", val[idx], avg);
+        drv_data->presence = false;
+    }
     if (++idx > BUF_SZ - 1)
         idx = 0;
     k_delayed_work_submit(&drv_data->work, K_MSEC(250));
 }
 
+static int capsense_channel_get(const struct device *dev, enum sensor_channel chan,
+                                struct sensor_value *val) {
+    struct capsense_data *drv_data = dev->data;
+    val->val1 = drv_data->value;
+    val->val2 = drv_data->presence;
+    return 0;
+}
+
+static int capsense_trigger_set(const struct device *dev, const struct sensor_trigger *trig,
+                         sensor_trigger_handler_t handler) {
+    struct capsense_data *drv_data = dev->data;
+    drv_data->trigger = trig;
+    drv_data->handler = handler;
+    return 0;
+}
+
+static const struct sensor_driver_api capsense_driver_api = {.trigger_set = capsense_trigger_set,
+                                                             .sample_fetch = capsense_sample_fetch,
+                                                             .channel_get = capsense_channel_get};
+
 static int capsense_init(const struct device *dev) {
     struct capsense_data *drv_data = dev->data;
     const struct capsense_config *cfg = dev->config;
-    drv_data->device_struct = dev;
+    drv_data->dev = dev;
     // comp
     if (comp_init(dev)) {
         LOG_ERR("Could not initialize COMP");
@@ -172,7 +197,7 @@ static int capsense_init(const struct device *dev) {
                    K_THREAD_STACK_SIZEOF(capsense_stack_area), CAPSENSE_PRIORITY);
     k_delayed_work_init(&drv_data->work, capsense_work);
     k_delayed_work_submit(&drv_data->work, K_MSEC(250));
-    
+
     LOG_DBG("Capsense initialized");
     LOG_DBG("GPIO pin: %d, ADC pin: %d", cfg->pin, cfg->adc_channel);
     return 0;
@@ -186,5 +211,5 @@ static const struct capsense_config capsense_cfg = {.adc_label = DT_INST_IO_CHAN
                                                     .flags = DT_INST_GPIO_FLAGS(0, gpios)};
 
 DEVICE_AND_API_INIT(capsense_dev, DT_INST_LABEL(0), &capsense_init, &capsense_data, &capsense_cfg,
-                    POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY, &capsense_api);
+                    POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY, &capsense_driver_api);
 
