@@ -155,7 +155,6 @@ static void capsense_work(struct k_work *item) {
         drv_data->presence = true;
         drv_data->handler(drv_data->dev, drv_data->trigger);
     } else {
-        // LOG_DBG("(%d (avg: %d))", val[idx], avg);
         drv_data->presence = false;
     }
     if (++idx > BUF_SZ - 1)
@@ -174,7 +173,7 @@ static int capsense_channel_get(const struct device *dev, enum sensor_channel ch
 static int capsense_trigger_set(const struct device *dev, const struct sensor_trigger *trig,
                          sensor_trigger_handler_t handler) {
     struct capsense_data *drv_data = dev->data;
-    drv_data->trigger = trig;
+    drv_data->trigger = (struct sensor_trigger*)trig;
     drv_data->handler = handler;
     return 0;
 }

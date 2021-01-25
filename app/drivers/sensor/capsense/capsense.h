@@ -36,5 +36,5 @@ struct capsense_data {
 
     // trigger
     sensor_trigger_handler_t handler;
-    const struct sensor_trigger *trigger;
+    struct sensor_trigger *trigger;
 };
