@@ -18,23 +18,23 @@ struct capsense_config {
     const uint32_t pin;
     const uint8_t flags;
     const uint16_t threshold;
-    
+
     const char *adc_label;
     uint8_t adc_channel;
 };
 
 struct capsense_data {
-    const struct device *device_struct;
+    const struct device *dev;
     const struct device *gpio_dev;
-    uint8_t ab_state;
-    int8_t pulses;
-    int8_t ticks;
-    int8_t delta;
-    
-    const struct device *adc;
-    
-    nrfx_lpcomp_config_t comp_cfg;
+    uint32_t value;
+    bool presence;
 
     struct k_delayed_work work;
-};
 
+    const struct device *adc;
+    nrfx_lpcomp_config_t comp_cfg;
+
+    // trigger
+    sensor_trigger_handler_t handler;
+    const struct sensor_trigger *trigger;
+};
