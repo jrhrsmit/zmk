@@ -25,15 +25,16 @@ struct capsense_config {
 
 struct capsense_data {
     const struct device *dev;
-    const struct device *gpio_dev;
-    uint32_t value;
-    bool presence;
-
     struct k_delayed_work work;
-
+    int32_t period;
+    uint32_t value;
+    int32_t presence;
+    uint32_t samples_taken;
+    // gpio
+    const struct device *gpio_dev;
+    // comparator
     const struct device *adc;
     nrfx_lpcomp_config_t comp_cfg;
-
     // trigger
     sensor_trigger_handler_t handler;
     struct sensor_trigger *trigger;

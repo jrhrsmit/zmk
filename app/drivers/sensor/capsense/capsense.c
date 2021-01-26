@@ -111,7 +111,7 @@ static uint32_t capsense_capacitance(const struct device *dev) {
 
 #define BUF_SZ 8
 #define SAMPLE_SZ 64
-#define THRESHOLD 10
+#define THRESHOLD 32
 
 static int capsense_sample_fetch(const struct device *dev, enum sensor_channel chan) { return 0; }
 
@@ -143,44 +143,66 @@ static void capsense_work(struct k_work *item) {
             }
         }
     }
-    // calculate average excluding top and bottom 10% of samples
-    for (int i = SAMPLE_SZ / 10; i < SAMPLE_SZ * 9 / 10; i++) {
+    // calculate average excluding top and bottom 30% of samples
+    for (int i = SAMPLE_SZ * 3 / 10; i < SAMPLE_SZ * 7 / 10; i++) {
         sample_avg += sample[i];
     }
     sample_avg = sample_avg / ((SAMPLE_SZ * 9 / 10) - (SAMPLE_SZ / 10));
     val[idx] = sample_avg;
     drv_data->value = sample_avg;
-    if (val[idx] > avg + THRESHOLD) {
+    drv_data->samples_taken++;
+    if (drv_data->samples_taken >= BUF_SZ && val[idx] > avg + THRESHOLD) {
         LOG_DBG("Presence detected (%d (avg: %d))", val[idx], avg);
-        drv_data->presence = true;
+        drv_data->presence = 1;
         drv_data->handler(drv_data->dev, drv_data->trigger);
     } else {
-        drv_data->presence = false;
+        drv_data->presence = 0;
     }
     if (++idx > BUF_SZ - 1)
         idx = 0;
-    k_delayed_work_submit(&drv_data->work, K_MSEC(250));
+    if (drv_data->period > 0)
+        k_delayed_work_submit(&drv_data->work, K_MSEC(drv_data->period));
 }
 
 static int capsense_channel_get(const struct device *dev, enum sensor_channel chan,
                                 struct sensor_value *val) {
     struct capsense_data *drv_data = dev->data;
-    val->val1 = drv_data->value;
-    val->val2 = drv_data->presence;
+    if (chan != SENSOR_CHAN_PROX)
+        return -ENOTSUP;
+    val->val1 = drv_data->presence;
+    val->val2 = 0;
     return 0;
 }
 
 static int capsense_trigger_set(const struct device *dev, const struct sensor_trigger *trig,
-                         sensor_trigger_handler_t handler) {
+                                sensor_trigger_handler_t handler) {
     struct capsense_data *drv_data = dev->data;
-    drv_data->trigger = (struct sensor_trigger*)trig;
+    drv_data->trigger = (struct sensor_trigger *)trig;
     drv_data->handler = handler;
+    return 0;
+}
+
+int capsense_attr_set(const struct device *dev, enum sensor_channel chan,
+                      enum sensor_attribute attr, const struct sensor_value *val) {
+    struct capsense_data *drv_data = dev->data;
+    if (chan != SENSOR_CHAN_PROX || attr != SENSOR_ATTR_SAMPLING_FREQUENCY)
+        return -ENOTSUP;
+    drv_data->period = val->val1;
+    if (drv_data->period <= 0) {
+        LOG_INF("Disabling capsense work");
+        k_delayed_work_cancel(&drv_data->work);
+    } else {
+        LOG_INF("Resuming capsense work");
+        drv_data->samples_taken = 0;
+        k_delayed_work_submit(&drv_data->work, K_MSEC(drv_data->period));
+    }
     return 0;
 }
 
 static const struct sensor_driver_api capsense_driver_api = {.trigger_set = capsense_trigger_set,
                                                              .sample_fetch = capsense_sample_fetch,
-                                                             .channel_get = capsense_channel_get};
+                                                             .channel_get = capsense_channel_get,
+                                                             .attr_set = capsense_attr_set};
 
 static int capsense_init(const struct device *dev) {
     struct capsense_data *drv_data = dev->data;
@@ -195,7 +217,9 @@ static int capsense_init(const struct device *dev) {
     k_work_q_start(&capsense_work_q, capsense_stack_area,
                    K_THREAD_STACK_SIZEOF(capsense_stack_area), CAPSENSE_PRIORITY);
     k_delayed_work_init(&drv_data->work, capsense_work);
-    k_delayed_work_submit(&drv_data->work, K_MSEC(250));
+    for(int i=0; i<BUF_SZ; i++) {
+    }
+    // k_delayed_work_submit(&drv_data->work, K_MSEC(250));
 
     LOG_DBG("Capsense initialized");
     LOG_DBG("GPIO pin: %d, ADC pin: %d", cfg->pin, cfg->adc_channel);
