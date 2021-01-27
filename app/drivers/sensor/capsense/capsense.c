@@ -109,32 +109,29 @@ static uint32_t capsense_capacitance(const struct device *dev) {
     return nrfx_timer_capture(&capsense_nrfx_timer, NRF_TIMER_CC_CHANNEL0);
 }
 
-#define BUF_SZ 8
-#define SAMPLE_SZ 64
-#define THRESHOLD 32
-
 static int capsense_sample_fetch(const struct device *dev, enum sensor_channel chan) { return 0; }
 
 static void capsense_work(struct k_work *item) {
     struct capsense_data *const drv_data = CONTAINER_OF(item, struct capsense_data, work);
-    static uint32_t val[BUF_SZ] = {0};
-    static uint32_t sample[SAMPLE_SZ] = {0};
+    const struct device *dev = drv_data->dev;
+    const struct capsense_config *cfg = dev->config;
+    static uint32_t val[DT_INST_PROP(0, buffer_size)] = {0};
+    static uint32_t sample[DT_INST_PROP(0, num_samples)] = {0};
     static uint32_t idx = 0;
     uint32_t low = 0xFFFFFFFF, high = 0, sum = 0, avg, sample_avg = 0;
-    const struct device *dev = drv_data->dev;
     // maybe use IIR filter?
-    for (int i = 0; i < BUF_SZ; i++) {
+    for (int i = 0; i < cfg->buffer_size; i++) {
         if (val[i] < low)
             low = val[i];
         else if (val[i] > high)
             high = val[i];
         sum += val[i];
     }
-    avg = sum / BUF_SZ;
-    for (int i = 0; i < SAMPLE_SZ; i++) {
+    avg = sum / cfg->buffer_size;
+    for (int i = 0; i < cfg->num_samples; i++) {
         sample[i] = capsense_capacitance(dev);
     }
-    for (int i = SAMPLE_SZ - 1; i > 0; i--) {
+    for (int i = cfg->num_samples - 1; i > 0; i--) {
         for (int j = 0; j < i; j++) {
             if (sample[j] > sample[j + 1]) {
                 uint32_t tmp = sample[j + 1];
@@ -144,21 +141,21 @@ static void capsense_work(struct k_work *item) {
         }
     }
     // calculate average excluding top and bottom 30% of samples
-    for (int i = SAMPLE_SZ * 3 / 10; i < SAMPLE_SZ * 7 / 10; i++) {
+    for (int i = cfg->num_samples * 3 / 10; i < cfg->num_samples * 7 / 10; i++) {
         sample_avg += sample[i];
     }
-    sample_avg = sample_avg / ((SAMPLE_SZ * 9 / 10) - (SAMPLE_SZ / 10));
+    sample_avg = sample_avg / ((cfg->num_samples * 9 / 10) - (cfg->num_samples / 10));
     val[idx] = sample_avg;
     drv_data->value = sample_avg;
     drv_data->samples_taken++;
-    if (drv_data->samples_taken >= BUF_SZ && val[idx] > avg + THRESHOLD) {
+    if (drv_data->samples_taken >= cfg->buffer_size && val[idx] > avg + drv_data->threshold) {
         LOG_DBG("Presence detected (%d (avg: %d))", val[idx], avg);
         drv_data->presence = 1;
         drv_data->handler(drv_data->dev, drv_data->trigger);
     } else {
         drv_data->presence = 0;
     }
-    if (++idx > BUF_SZ - 1)
+    if (++idx > cfg->buffer_size - 1)
         idx = 0;
     if (drv_data->period > 0)
         k_delayed_work_submit(&drv_data->work, K_MSEC(drv_data->period));
@@ -182,19 +179,33 @@ static int capsense_trigger_set(const struct device *dev, const struct sensor_tr
     return 0;
 }
 
-int capsense_attr_set(const struct device *dev, enum sensor_channel chan,
-                      enum sensor_attribute attr, const struct sensor_value *val) {
+static int capsense_attr_set(const struct device *dev, enum sensor_channel chan,
+                             enum sensor_attribute attr, const struct sensor_value *val) {
     struct capsense_data *drv_data = dev->data;
-    if (chan != SENSOR_CHAN_PROX || attr != SENSOR_ATTR_SAMPLING_FREQUENCY)
+    const struct capsense_config *cfg = dev->config;
+    if (chan != SENSOR_CHAN_PROX)
         return -ENOTSUP;
-    drv_data->period = val->val1;
-    if (drv_data->period <= 0) {
-        LOG_INF("Disabling capsense work");
-        k_delayed_work_cancel(&drv_data->work);
-    } else {
-        LOG_INF("Resuming capsense work");
-        drv_data->samples_taken = 0;
-        k_delayed_work_submit(&drv_data->work, K_MSEC(drv_data->period));
+    switch (attr) {
+    case SENSOR_ATTR_SAMPLING_FREQUENCY:
+        if (val->val1 <= 0) {
+            drv_data->period = 0;
+            LOG_INF("Disabling capsense work");
+            k_delayed_work_cancel(&drv_data->work);
+        } else {
+            drv_data->period = cfg->sample_period;
+            LOG_INF("Resuming capsense work");
+            drv_data->samples_taken = 0;
+            k_delayed_work_submit(&drv_data->work, K_MSEC(cfg->sample_period));
+        }
+        break;
+    case SENSOR_ATTR_UPPER_THRESH:
+        if (val->val1)
+            drv_data->threshold = cfg->threshold_grounded;
+        else
+            drv_data->threshold = cfg->threshold_wireless;
+        break;
+    default:
+        return -ENOTSUP;
     }
     return 0;
 }
@@ -208,6 +219,7 @@ static int capsense_init(const struct device *dev) {
     struct capsense_data *drv_data = dev->data;
     const struct capsense_config *cfg = dev->config;
     drv_data->dev = dev;
+    drv_data->threshold = cfg->threshold_grounded;
     // comp
     if (comp_init(dev)) {
         LOG_ERR("Could not initialize COMP");
@@ -217,21 +229,25 @@ static int capsense_init(const struct device *dev) {
     k_work_q_start(&capsense_work_q, capsense_stack_area,
                    K_THREAD_STACK_SIZEOF(capsense_stack_area), CAPSENSE_PRIORITY);
     k_delayed_work_init(&drv_data->work, capsense_work);
-    for(int i=0; i<BUF_SZ; i++) {
-    }
-    // k_delayed_work_submit(&drv_data->work, K_MSEC(250));
-
     LOG_DBG("Capsense initialized");
     LOG_DBG("GPIO pin: %d, ADC pin: %d", cfg->pin, cfg->adc_channel);
+    LOG_DBG("threshold_grounded: %d", cfg->threshold_grounded);
+    LOG_DBG("threshold_wireless: %d", cfg->threshold_wireless);
     return 0;
 }
 
 static struct capsense_data capsense_data;
-static const struct capsense_config capsense_cfg = {.adc_label = DT_INST_IO_CHANNELS_LABEL(0),
-                                                    .adc_channel = DT_INST_IO_CHANNELS_INPUT(0),
-                                                    .pin = DT_INST_GPIO_PIN(0, gpios),
-                                                    .label = DT_INST_GPIO_LABEL(0, gpios),
-                                                    .flags = DT_INST_GPIO_FLAGS(0, gpios)};
+static const struct capsense_config capsense_cfg = {
+    .adc_label = DT_INST_IO_CHANNELS_LABEL(0),
+    .adc_channel = DT_INST_IO_CHANNELS_INPUT(0),
+    .pin = DT_INST_GPIO_PIN(0, gpios),
+    .label = DT_INST_GPIO_LABEL(0, gpios),
+    .flags = DT_INST_GPIO_FLAGS(0, gpios),
+    .threshold_grounded = DT_INST_PROP(0, threshold_grounded),
+    .threshold_wireless = DT_INST_PROP(0, threshold_wireless),
+    .buffer_size = DT_INST_PROP(0, buffer_size),
+    .num_samples = DT_INST_PROP(0, num_samples),
+    .sample_period = DT_INST_PROP(0, sample_period)};
 
 DEVICE_AND_API_INIT(capsense_dev, DT_INST_LABEL(0), &capsense_init, &capsense_data, &capsense_cfg,
                     POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY, &capsense_driver_api);

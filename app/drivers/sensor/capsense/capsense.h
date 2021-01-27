@@ -17,7 +17,11 @@ struct capsense_config {
     const char *label;
     const uint32_t pin;
     const uint8_t flags;
-    const uint16_t threshold;
+    const uint32_t threshold_grounded;
+    const uint32_t threshold_wireless;
+    const uint32_t buffer_size;
+    const uint32_t num_samples;
+    const uint32_t sample_period;
 
     const char *adc_label;
     uint8_t adc_channel;
@@ -30,6 +34,7 @@ struct capsense_data {
     uint32_t value;
     int32_t presence;
     uint32_t samples_taken;
+    uint32_t threshold;
     // gpio
     const struct device *gpio_dev;
     // comparator

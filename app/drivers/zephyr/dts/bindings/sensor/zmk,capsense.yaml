@@ -9,8 +9,31 @@ properties:
     required: true
   gpios:
     type: phandle-array
-    required: false
+    description: The pin used for charging the capacitor, can be the same as the ADC pin
+    required: true 
   io-channels:
     type: phandle-array
-    description: The pin that is connected to the capacitive button
+    description: The ADC pin that is connected to the to the capacitive button for the LPCOMP
     required: true
+  threshold_grounded:
+    type: int
+    description: Difference in TIMER ticks to trigger the event for turning on the keyboard
+    required: false
+    default: 15
+  threshold_wireless:
+    type: int
+    description: Difference in TIMER ticks to trigger the event for turning on the keyboard
+    required: false
+    default: 10
+  buffer_size:
+    type: int
+    required: false
+    default: 8
+  num_samples:
+    type: int
+    required: false
+    default: 64
+  sample_period:
+    type: int
+    required: false
+    default: 250
