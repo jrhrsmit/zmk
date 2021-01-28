@@ -195,6 +195,10 @@ menu "Display/LED Options"
 
 rsource "src/display/Kconfig"
 
+config ZMK_PROXIMITY
+	bool "Let a proximity sensor trigger the backlight"
+    default n
+
 config ZMK_RGB_UNDERGLOW
 	bool "RGB Adressable LED Underglow"
 	select LED_STRIP
