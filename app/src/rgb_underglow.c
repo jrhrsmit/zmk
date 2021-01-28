@@ -33,6 +33,8 @@ enum rgb_underglow_effect {
     UNDERGLOW_EFFECT_BREATHE,
     UNDERGLOW_EFFECT_SPECTRUM,
     UNDERGLOW_EFFECT_SWIRL,
+    UNDERGLOW_EFFECT_TURN_OFF,
+    UNDERGLOW_EFFECT_TURN_ON,
     UNDERGLOW_EFFECT_NUMBER // Used to track number of underglow effects
 };
 
@@ -111,6 +113,36 @@ static struct led_rgb hsb_to_rgb(struct led_hsb hsb) {
     return rgb;
 }
 
+static void zmk_rgb_underglow_effect_turn_on() {
+    int limit, step = state.brightness / 10;
+    for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
+        limit = state.brightness - step;
+        pixels[i].r += (int)pixels[i].r > limit ? state.brightness - pixels[i].r : step;
+        pixels[i].g += (int)pixels[i].g > limit ? state.brightness - pixels[i].g : step;
+        pixels[i].b += (int)pixels[i].b > limit ? state.brightness - pixels[i].b : step;
+    }
+    for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
+        if (pixels[i].r != state.brightness || pixels[i].g != state.brightness ||
+            pixels[i].b != state.brightness)
+            return;
+    }
+    state.current_effect = UNDERGLOW_EFFECT_SOLID;
+}
+
+static void zmk_rgb_underglow_effect_turn_off() {
+    int step = state.brightness / 10;
+    for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
+        pixels[i].r -= pixels[i].r < step ? pixels[i].r : step;
+        pixels[i].g -= pixels[i].g < step ? pixels[i].g : step;
+        pixels[i].b -= pixels[i].b < step ? pixels[i].b : step;
+    }
+    for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
+        if (pixels[i].r || pixels[i].g || pixels[i].b)
+            return;
+    }
+    zmk_rgb_underglow_off(false);
+}
+
 static void zmk_rgb_underglow_effect_solid() {
     for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
         int hue = state.hue;
@@ -184,6 +216,12 @@ static void zmk_rgb_underglow_tick(struct k_work *work) {
         break;
     case UNDERGLOW_EFFECT_SWIRL:
         zmk_rgb_underglow_effect_swirl();
+        break;
+    case UNDERGLOW_EFFECT_TURN_OFF:
+        zmk_rgb_underglow_effect_turn_off();
+        break;
+    case UNDERGLOW_EFFECT_TURN_ON:
+        zmk_rgb_underglow_effect_turn_on();
         break;
     }
 
@@ -286,15 +324,19 @@ int underglow_event_handler(const zmk_event_t *eh) {
     switch (ev->state) {
     case ZMK_ACTIVITY_ACTIVE:
         // Reload settings to get state prior to idle/sleep
-        settings_load_subtree("rgb/underglow");
+        // settings_load_subtree("rgb/underglow");
         // Don't auto on underglow unless it was on before the board went to sleep
-        if (state.on) {
-            zmk_rgb_underglow_on(false);
-        }
+        LOG_INF("State switched to ACTIVE, last RGB state: %s", state.on ? "on" : "off");
+        zmk_rgb_underglow_on(false);
+        // if (state.on) {
+        //    zmk_rgb_underglow_on(false);
+        //}
         break;
     case ZMK_ACTIVITY_IDLE:
     case ZMK_ACTIVITY_SLEEP:
-        zmk_rgb_underglow_off(false);
+        LOG_INF("State switched to SLEEP/IDLE, last RGB state: %s", state.on ? "on" : "off");
+        //zmk_rgb_underglow_off(false);
+        state.current_effect = UNDERGLOW_EFFECT_TURN_OFF;
         break;
     default:
         LOG_WRN("Unhandled activity state: %d", ev->state);
@@ -308,6 +350,7 @@ ZMK_SUBSCRIPTION(led_strip, zmk_activity_state_changed);
 
 int zmk_rgb_underglow_save_state() {
 #if IS_ENABLED(CONFIG_SETTINGS)
+    LOG_INF("Saving state");
     k_delayed_work_cancel(&underglow_save_work);
     return k_delayed_work_submit(&underglow_save_work, K_MSEC(CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE));
 #else
@@ -339,6 +382,8 @@ int zmk_rgb_underglow_toggle(bool saveState) {
     if (!led_strip)
         return -ENODEV;
 
+    LOG_INF("Toggling RGB (saveState: %s, prev state: %s)", saveState ? "on" : "off",
+            state.on ? "on" : "off");
     if (state.on) {
         return zmk_rgb_underglow_off(saveState);
     } else {
@@ -353,11 +398,11 @@ int zmk_rgb_underglow_off(bool saveState) {
         return -ENODEV;
 
     state.on = false;
+    k_timer_stop(&underglow_tick);
 
     for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
         pixels[i] = (struct led_rgb){r : 0, g : 0, b : 0};
     }
-
     led_strip_update_rgb(led_strip, pixels, STRIP_NUM_PIXELS);
 
 #if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER)
@@ -369,8 +414,6 @@ int zmk_rgb_underglow_off(bool saveState) {
         }
     }
 #endif
-
-    k_timer_stop(&underglow_tick);
 
     if (saveState) {
         return zmk_rgb_underglow_save_state();
@@ -384,6 +427,7 @@ int zmk_rgb_underglow_on(bool saveState) {
         return -ENODEV;
 
     state.on = true;
+    state.current_effect = UNDERGLOW_EFFECT_TURN_ON;
 
 #if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER)
     if (ext_power != NULL) {
