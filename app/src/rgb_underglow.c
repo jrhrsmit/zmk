@@ -25,6 +25,11 @@
 #include <zmk/events/activity_state_changed.h>
 #include <zmk/events/usb_conn_state_changed.h>
 #include <zmk/workqueue.h>
+#include <zmk/events/position_state_changed.h>
+#include <zmk/events/position_state_changed.h>
+#include <zmk/events/keycode_state_changed.h>
+#include <zmk/behavior.h>
+#include <zmk/keymap.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -49,6 +54,7 @@ enum rgb_underglow_effect {
     UNDERGLOW_EFFECT_BREATHE,
     UNDERGLOW_EFFECT_SPECTRUM,
     UNDERGLOW_EFFECT_SWIRL,
+    UNDERGLOW_EFFECT_RIPPLE,
     UNDERGLOW_EFFECT_NUMBER // Used to track number of underglow effects
 };
 
@@ -175,6 +181,165 @@ static void zmk_rgb_underglow_effect_swirl() {
     state.animation_step = state.animation_step % HUE_MAX;
 }
 
+struct pixel_location {
+    uint8_t x;
+    uint8_t y;
+    uint8_t pos;
+    uint8_t state;
+};
+
+static struct pixel_location pixel_locations[STRIP_NUM_PIXELS] = {
+    {.x = 0, .y = 0, .pos = 18, .state = 0},  // Esc
+    {.x = 16, .y = 0, .pos = 17, .state = 0}, // F1
+    {.x = 24, .y = 0, .pos = 16, .state = 0}, // F2
+    {.x = 32, .y = 0, .pos = 15, .state = 0}, // F3
+    {.x = 40, .y = 0, .pos = 14, .state = 0}, // F4
+    {.x = 52, .y = 0, .pos = 13, .state = 0}, // F5
+    {.x = 60, .y = 0, .pos = 12, .state = 0}, // F6
+    {.x = 68, .y = 0, .pos = 11, .state = 0}, // F7
+    {.x = 76, .y = 0, .pos = 10, .state = 0}, // F8
+    {.x = 88, .y = 0, .pos = 9, .state = 0},  // F9
+    {.x = 96, .y = 0, .pos = 8, .state = 0},  // F10
+    {.x = 104, .y = 0, .pos = 7, .state = 0}, // F11
+    {.x = 112, .y = 0, .pos = 6, .state = 0}, // F12
+    {.x = 122, .y = 0, .pos = 5, .state = 0}, // PrtSc
+    {.x = 130, .y = 0, .pos = 4, .state = 0}, // Scroll Lock
+    {.x = 138, .y = 0, .pos = 3, .state = 0}, // Pause Break
+
+    {.x = 0, .y = 12, .pos = 19, .state = 0},   // ~ `
+    {.x = 8, .y = 12, .pos = 20, .state = 0},   // ! 1
+    {.x = 16, .y = 12, .pos = 21, .state = 0},  // @ 2
+    {.x = 24, .y = 12, .pos = 22, .state = 0},  // # 3
+    {.x = 32, .y = 12, .pos = 23, .state = 0},  // $ 4
+    {.x = 40, .y = 12, .pos = 24, .state = 0},  // % 5
+    {.x = 48, .y = 12, .pos = 25, .state = 0},  // ^ 6
+    {.x = 56, .y = 12, .pos = 26, .state = 0},  // & 7
+    {.x = 64, .y = 12, .pos = 27, .state = 0},  // * 8
+    {.x = 72, .y = 12, .pos = 28, .state = 0},  // ( 9
+    {.x = 80, .y = 12, .pos = 29, .state = 0},  // ) 0
+    {.x = 88, .y = 12, .pos = 30, .state = 0},  // _ -
+    {.x = 96, .y = 12, .pos = 31, .state = 0},  // + =
+    {.x = 108, .y = 12, .pos = 32, .state = 0}, // Backspace
+    {.x = 122, .y = 12, .pos = 33, .state = 0}, // Insert
+    {.x = 130, .y = 12, .pos = 34, .state = 0}, // Home
+    {.x = 138, .y = 12, .pos = 35, .state = 0}, // PgUp
+
+    {.x = 2, .y = 20, .pos = 52, .state = 0},   // Tab
+    {.x = 12, .y = 20, .pos = 51, .state = 0},  // Q
+    {.x = 20, .y = 20, .pos = 50, .state = 0},  // W
+    {.x = 28, .y = 20, .pos = 49, .state = 0},  // E
+    {.x = 36, .y = 20, .pos = 48, .state = 0},  // R
+    {.x = 44, .y = 20, .pos = 47, .state = 0},  // T
+    {.x = 52, .y = 20, .pos = 46, .state = 0},  // Y
+    {.x = 60, .y = 20, .pos = 45, .state = 0},  // U
+    {.x = 68, .y = 20, .pos = 44, .state = 0},  // I
+    {.x = 76, .y = 20, .pos = 43, .state = 0},  // O
+    {.x = 84, .y = 20, .pos = 42, .state = 0},  // P
+    {.x = 92, .y = 20, .pos = 41, .state = 0},  // { [
+    {.x = 100, .y = 20, .pos = 40, .state = 0}, // } ]
+    {.x = 110, .y = 20, .pos = 39, .state = 0}, // | Backslash
+    {.x = 122, .y = 20, .pos = 38, .state = 0}, // Delete
+    {.x = 130, .y = 20, .pos = 37, .state = 0}, // End
+    {.x = 138, .y = 20, .pos = 36, .state = 0}, // PgDn
+
+    {.x = 3, .y = 28, .pos = 53, .state = 0},   // Caps Lock
+    {.x = 14, .y = 28, .pos = 54, .state = 0},  // A
+    {.x = 22, .y = 28, .pos = 55, .state = 0},  // S
+    {.x = 30, .y = 28, .pos = 56, .state = 0},  // D
+    {.x = 38, .y = 28, .pos = 57, .state = 0},  // F
+    {.x = 46, .y = 28, .pos = 58, .state = 0},  // G
+    {.x = 54, .y = 28, .pos = 59, .state = 0},  // H
+    {.x = 62, .y = 28, .pos = 60, .state = 0},  // J
+    {.x = 70, .y = 28, .pos = 61, .state = 0},  // K
+    {.x = 78, .y = 28, .pos = 62, .state = 0},  // L
+    {.x = 86, .y = 28, .pos = 63, .state = 0},  // : ;
+    {.x = 94, .y = 28, .pos = 64, .state = 0},  // " '
+    {.x = 107, .y = 28, .pos = 65, .state = 0}, // Enter
+
+    {.x = 5, .y = 36, .pos = 78, .state = 0},   // Shift
+    {.x = 18, .y = 36, .pos = 77, .state = 0},  // Z
+    {.x = 26, .y = 36, .pos = 76, .state = 0},  // X
+    {.x = 34, .y = 36, .pos = 75, .state = 0},  // C
+    {.x = 42, .y = 36, .pos = 74, .state = 0},  // V
+    {.x = 50, .y = 36, .pos = 73, .state = 0},  // B
+    {.x = 58, .y = 36, .pos = 72, .state = 0},  // N
+    {.x = 66, .y = 36, .pos = 71, .state = 0},  // M
+    {.x = 74, .y = 36, .pos = 70, .state = 0},  // < ,
+    {.x = 82, .y = 36, .pos = 69, .state = 0},  // > .
+    {.x = 90, .y = 36, .pos = 68, .state = 0},  // ? /
+    {.x = 105, .y = 36, .pos = 67, .state = 0}, // Shift
+    {.x = 130, .y = 36, .pos = 66, .state = 0}, // ↑
+
+    {.x = 1, .y = 44, .pos = 79, .state = 0},   // Ctrl
+    {.x = 11, .y = 44, .pos = 80, .state = 0},  // Win
+    {.x = 21, .y = 44, .pos = 81, .state = 0},  // Alt
+    {.x = 51, .y = 44, .pos = 82, .state = 0},  // Space
+    {.x = 81, .y = 44, .pos = 83, .state = 0},  // Alt
+    {.x = 91, .y = 44, .pos = 84, .state = 0},  // Win
+    {.x = 101, .y = 44, .pos = 85, .state = 0}, // Menu
+    {.x = 111, .y = 44, .pos = 86, .state = 0}, // Ctrl
+    {.x = 122, .y = 44, .pos = 87, .state = 0}, // ←
+    {.x = 130, .y = 44, .pos = 88, .state = 0}, // ↓
+    {.x = 138, .y = 44, .pos = 89, .state = 0}, // →
+
+    {138, 0, .state = 0},       // Notification LED
+    {138, 1, .state = 0},       // Notification LED
+    {130, 2, .state = 0},       // Notification LED
+    {51 - 15, 3, .state = 0},   // Space led 1
+    {51 + 15, 44, .state = 0}}; // Space led 2
+
+#define RIPPLE_THICKNESS 8
+
+static void zmk_rgb_underglow_effect_ripple() {
+    for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
+        struct zmk_led_hsb hsb = state.color;
+        hsb.b = 0;
+        for (int j = 0; j < STRIP_NUM_PIXELS; j++) {
+            if (j == i || pixel_locations[j].state == 0)
+                continue;
+
+            float pixel_distance;
+            int dx = pixel_locations[i].x - pixel_locations[j].x;
+            int dy = pixel_locations[i].y - pixel_locations[j].y;
+            pixel_distance = sqrtf((float)(dx * dx + dy * dy));
+            if (pixel_distance > pixel_locations[j].state - RIPPLE_THICKNESS &&
+                pixel_distance < pixel_locations[j].state + RIPPLE_THICKNESS) {
+                int intensity = BRT_MAX / RIPPLE_THICKNESS *
+                        (RIPPLE_THICKNESS - abs(pixel_distance - pixel_locations[j].state));
+				if (intensity + hsb.b > 0xFF)
+					hsb.b = 0xFF;
+				else
+					hsb.b += intensity;
+            }
+        }
+        if (pixel_locations[i].state > 0) {
+            pixel_locations[i].state++;
+            if (pixel_locations[i].state > 150)
+                pixel_locations[i].state = 0;
+        }
+        pixels[pixel_locations[i].pos] = hsb_to_rgb(hsb_scale_min_max(hsb));
+    }
+}
+
+static void zmk_rgb_underglow_effect_ripple_handler(int pos) {
+    LOG_INF("Ripple update: pos: %d, x: %d, y: %d, led: %d", pos, pixel_locations[pos].x,
+            pixel_locations[pos].y, pixel_locations[pos].pos);
+    pixel_locations[pos].state = 1;
+}
+
+int rgb_underglow_listener(const zmk_event_t *eh) {
+    struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
+    switch (state.current_effect) {
+    case UNDERGLOW_EFFECT_RIPPLE:
+        zmk_rgb_underglow_effect_ripple_handler(ev->position);
+        break;
+    }
+    return ZMK_EV_EVENT_BUBBLE;
+}
+
+ZMK_LISTENER(rgb_underglow, rgb_underglow_listener);
+ZMK_SUBSCRIPTION(rgb_underglow, zmk_position_state_changed);
+
 static void zmk_rgb_underglow_tick(struct k_work *work) {
     switch (state.current_effect) {
     case UNDERGLOW_EFFECT_SOLID:
@@ -188,6 +353,9 @@ static void zmk_rgb_underglow_tick(struct k_work *work) {
         break;
     case UNDERGLOW_EFFECT_SWIRL:
         zmk_rgb_underglow_effect_swirl();
+        break;
+    case UNDERGLOW_EFFECT_RIPPLE:
+        zmk_rgb_underglow_effect_ripple();
         break;
     }
 
