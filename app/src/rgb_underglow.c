@@ -31,6 +31,8 @@
 #include <zmk/behavior.h>
 #include <zmk/keymap.h>
 
+#include <random/rand32.h>
+
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #if !DT_HAS_CHOSEN(zmk_underglow)
@@ -188,6 +190,20 @@ struct pixel_location {
     uint8_t state;
 };
 
+struct ripple_effect_event {
+    uint8_t pos;
+    uint8_t ticks_passed;
+    struct zmk_led_hsb hsb;
+};
+#define RIPPLE_EFFECTS_BUF_SIZE 16
+static struct ripple_effect_event ripple_effects[RIPPLE_EFFECTS_BUF_SIZE] = {
+    {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
+    {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
+    {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
+    {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
+    {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
+    {0, 0, {0, SAT_MAX, BRT_MAX}}};
+
 static struct pixel_location pixel_locations[STRIP_NUM_PIXELS] = {
     {.x = 0, .y = 0, .pos = 18, .state = 0},  // Esc
     {.x = 16, .y = 0, .pos = 17, .state = 0}, // F1
@@ -273,66 +289,109 @@ static struct pixel_location pixel_locations[STRIP_NUM_PIXELS] = {
     {.x = 1, .y = 44, .pos = 79, .state = 0},   // Ctrl
     {.x = 11, .y = 44, .pos = 80, .state = 0},  // Win
     {.x = 21, .y = 44, .pos = 81, .state = 0},  // Alt
-    {.x = 51, .y = 44, .pos = 82, .state = 0},  // Space
-    {.x = 81, .y = 44, .pos = 83, .state = 0},  // Alt
-    {.x = 91, .y = 44, .pos = 84, .state = 0},  // Win
-    {.x = 101, .y = 44, .pos = 85, .state = 0}, // Menu
-    {.x = 111, .y = 44, .pos = 86, .state = 0}, // Ctrl
-    {.x = 122, .y = 44, .pos = 87, .state = 0}, // ←
-    {.x = 130, .y = 44, .pos = 88, .state = 0}, // ↓
-    {.x = 138, .y = 44, .pos = 89, .state = 0}, // →
+    {.x = 51, .y = 44, .pos = 83, .state = 0},  // Space
+    {.x = 81, .y = 44, .pos = 85, .state = 0},  // Alt
+    {.x = 91, .y = 44, .pos = 86, .state = 0},  // Win
+    {.x = 101, .y = 44, .pos = 87, .state = 0}, // Menu
+    {.x = 111, .y = 44, .pos = 88, .state = 0}, // Ctrl
+    {.x = 122, .y = 44, .pos = 89, .state = 0}, // ←
+    {.x = 130, .y = 44, .pos = 90, .state = 0}, // ↓
+    {.x = 138, .y = 44, .pos = 91, .state = 0}, // →
 
     {138, 0, .state = 0},       // Notification LED
-    {138, 1, .state = 0},       // Notification LED
-    {130, 2, .state = 0},       // Notification LED
-    {51 - 15, 3, .state = 0},   // Space led 1
-    {51 + 15, 44, .state = 0}}; // Space led 2
+    {130, 1, .state = 0},       // Notification LED
+    {122, 2, .state = 0},       // Notification LED
+    {51 - 15, 82, .state = 0},  // Space led 1
+    {51 + 15, 84, .state = 0}}; // Space led 2
 
-#define RIPPLE_THICKNESS 8
+static uint8_t pixel_distances[STRIP_NUM_PIXELS][STRIP_NUM_PIXELS];
+static void init_ripple_pixel_distances(void) {
+    for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
+        for (int j = 0; j < STRIP_NUM_PIXELS; j++) {
+            int dx = pixel_locations[i].x - pixel_locations[j].x;
+            int dy = pixel_locations[i].y - pixel_locations[j].y;
+            pixel_distances[i][j] = (uint8_t)round(sqrtf((float)(dx * dx + dy * dy)));
+        }
+    }
+}
+
+#define RIPPLE_THICKNESS 16
 
 static void zmk_rgb_underglow_effect_ripple() {
     for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
+        bool first_ripple = 1;
         struct zmk_led_hsb hsb = state.color;
         hsb.b = 0;
-        for (int j = 0; j < STRIP_NUM_PIXELS; j++) {
-            if (j == i || pixel_locations[j].state == 0)
+        for (int j = 0; j < RIPPLE_EFFECTS_BUF_SIZE; j++) {
+            if (ripple_effects[j].ticks_passed == 0)
                 continue;
-
             float pixel_distance;
-            int dx = pixel_locations[i].x - pixel_locations[j].x;
-            int dy = pixel_locations[i].y - pixel_locations[j].y;
-            pixel_distance = sqrtf((float)(dx * dx + dy * dy));
-            if (pixel_distance > pixel_locations[j].state - RIPPLE_THICKNESS &&
-                pixel_distance < pixel_locations[j].state + RIPPLE_THICKNESS) {
-                int intensity = BRT_MAX / RIPPLE_THICKNESS *
-                        (RIPPLE_THICKNESS - abs(pixel_distance - pixel_locations[j].state));
-				if (intensity + hsb.b > 0xFF)
-					hsb.b = 0xFF;
-				else
-					hsb.b += intensity;
+            pixel_distance = pixel_distances[i][ripple_effects[j].pos];
+
+            if (pixel_distance > ripple_effects[j].ticks_passed - RIPPLE_THICKNESS &&
+                pixel_distance < ripple_effects[j].ticks_passed + RIPPLE_THICKNESS) {
+                int intensity =
+                    BRT_MAX / RIPPLE_THICKNESS *
+                    (RIPPLE_THICKNESS - abs(pixel_distance - ripple_effects[j].ticks_passed));
+                if (first_ripple) {
+                    hsb.h = ripple_effects[j].hsb.h;
+                    first_ripple = 0;
+                } else {
+                    int diff_left_mixing = abs(hsb.h - ripple_effects[j].hsb.h);
+                    int diff_right_mixing = MIN(hsb.h, ripple_effects[j].hsb.h) + 360 -
+                                            MAX(hsb.h, ripple_effects[j].hsb.h);
+                    if (diff_left_mixing < diff_right_mixing) {
+                        hsb.h = MIN(hsb.h, ripple_effects[j].hsb.h) + diff_left_mixing / 2;
+                    } else {
+                        hsb.h = MAX(hsb.h, ripple_effects[j].hsb.h) + diff_right_mixing / 2;
+                    }
+                }
+                if (intensity + hsb.b > BRT_MAX) {
+                    hsb.b = BRT_MAX;
+                    // when we reach maximum brightness for one pixel, we don't
+                    // have to consider the brightness caused by a ripple from
+                    // other keys.
+                    if (hsb.s == 0)
+                        break;
+                } else {
+                    hsb.b += intensity;
+                }
             }
         }
-        if (pixel_locations[i].state > 0) {
-            pixel_locations[i].state++;
-            if (pixel_locations[i].state > 150)
-                pixel_locations[i].state = 0;
-        }
+
         pixels[pixel_locations[i].pos] = hsb_to_rgb(hsb_scale_min_max(hsb));
+    }
+    for (int j = 0; j < RIPPLE_EFFECTS_BUF_SIZE; j++) {
+        if (ripple_effects[j].ticks_passed > 0) {
+            ripple_effects[j].ticks_passed++;
+            if (ripple_effects[j].ticks_passed > 150)
+                ripple_effects[j].ticks_passed = 0;
+        }
     }
 }
 
 static void zmk_rgb_underglow_effect_ripple_handler(int pos) {
-    LOG_INF("Ripple update: pos: %d, x: %d, y: %d, led: %d", pos, pixel_locations[pos].x,
-            pixel_locations[pos].y, pixel_locations[pos].pos);
+    static int ripple_effects_i = 0;
     pixel_locations[pos].state = 1;
+    ripple_effects[ripple_effects_i].pos = pos;
+    ripple_effects[ripple_effects_i].ticks_passed = 1;
+    ripple_effects[ripple_effects_i].hsb.h = sys_rand32_get() % HUE_MAX;
+    LOG_INF("Ripple update: pos: %d, x: %d, y: %d, led: %d, hue: %d", pos, pixel_locations[pos].x,
+            pixel_locations[pos].y, pixel_locations[pos].pos,
+            ripple_effects[ripple_effects_i].hsb.h);
+    ripple_effects_i++;
+    if (ripple_effects_i >= RIPPLE_EFFECTS_BUF_SIZE)
+        ripple_effects_i = 0;
 }
 
 int rgb_underglow_listener(const zmk_event_t *eh) {
     struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
-    switch (state.current_effect) {
-    case UNDERGLOW_EFFECT_RIPPLE:
-        zmk_rgb_underglow_effect_ripple_handler(ev->position);
-        break;
+    if (ev->state) {
+        switch (state.current_effect) {
+        case UNDERGLOW_EFFECT_RIPPLE:
+            zmk_rgb_underglow_effect_ripple_handler(ev->position);
+            break;
+        }
     }
     return ZMK_EV_EVENT_BUBBLE;
 }
@@ -408,7 +467,14 @@ static struct k_work_delayable underglow_save_work;
 #endif
 
 static int zmk_rgb_underglow_init(const struct device *_arg) {
-    led_strip = DEVICE_DT_GET(STRIP_CHOSEN);
+    led_strip = device_get_binding(STRIP_LABEL);
+    if (led_strip) {
+        LOG_INF("Found LED strip device %s", STRIP_LABEL);
+    } else {
+        LOG_ERR("LED strip device %s not found", STRIP_LABEL);
+        return -EINVAL;
+    }
+    init_ripple_pixel_distances();
 
 #if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER)
     ext_power = device_get_binding("EXT_POWER");
