@@ -298,11 +298,11 @@ static struct pixel_location pixel_locations[STRIP_NUM_PIXELS] = {
     {.x = 130, .y = 44, .pos = 90, .state = 0}, // ↓
     {.x = 138, .y = 44, .pos = 91, .state = 0}, // →
 
-    {138, 0, .state = 0},       // Notification LED
-    {130, 1, .state = 0},       // Notification LED
-    {122, 2, .state = 0},       // Notification LED
-    {51 - 15, 82, .state = 0},  // Space led 1
-    {51 + 15, 84, .state = 0}}; // Space led 2
+    {.x = 138, .y = 6, .pos = 0, .state = 0},   // Notification LED
+    {.x = 130, .y = 6, .pos = 1, .state = 0},   // Notification LED
+    {.x = 122, .y = 6, .pos = 2, .state = 0},   // Notification LED
+    {.x = 36, .y = 44, .pos = 82, .state = 0},  // Space led 1
+    {.x = 66, .y = 44, .pos = 84, .state = 0}}; // Space led 2
 
 static uint8_t pixel_distances[STRIP_NUM_PIXELS][STRIP_NUM_PIXELS];
 static void init_ripple_pixel_distances(void) {
