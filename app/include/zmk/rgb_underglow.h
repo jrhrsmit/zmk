@@ -6,6 +6,17 @@
 
 #pragma once
 
+#include <devicetree.h>
+
+#if DT_HAS_CHOSEN(zmk_ledstrip_map)
+
+#define ZMK_LEDSTRIP_MAP_NODE DT_CHOSEN(zmk_ledstrip_map)
+#define ZMK_LEDSTRIP_MAP_LEN DT_PROP_LEN(ZMK_LEDSTRIP_MAP_NODE, map)
+#define ZMK_LEDSTRIP_MAP DT_PROP(ZMK_LEDSTRIP_MAP_NODE, map)
+#define ZMK_LEDSTRIP_INDEX DT_PROP(ZMK_LEDSTRIP_MAP_NODE, strip_index)
+
+#endif
+
 struct zmk_led_hsb {
     uint16_t h;
     uint8_t s;

@@ -33,6 +33,8 @@
 
 #include <random/rand32.h>
 
+#include <zmk/rgb_underglow.h>
+
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #if !DT_HAS_CHOSEN(zmk_underglow)
@@ -183,18 +185,12 @@ static void zmk_rgb_underglow_effect_swirl() {
     state.animation_step = state.animation_step % HUE_MAX;
 }
 
-struct pixel_location {
-    uint8_t x;
-    uint8_t y;
-    uint8_t pos;
-    uint8_t state;
-};
-
 struct ripple_effect_event {
     uint8_t pos;
     uint8_t ticks_passed;
     struct zmk_led_hsb hsb;
 };
+
 #define RIPPLE_EFFECTS_BUF_SIZE 16
 static struct ripple_effect_event ripple_effects[RIPPLE_EFFECTS_BUF_SIZE] = {
     {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
@@ -204,118 +200,24 @@ static struct ripple_effect_event ripple_effects[RIPPLE_EFFECTS_BUF_SIZE] = {
     {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
     {0, 0, {0, SAT_MAX, BRT_MAX}}};
 
-static struct pixel_location pixel_locations[STRIP_NUM_PIXELS] = {
-    {.x = 0, .y = 0, .pos = 18, .state = 0},  // Esc
-    {.x = 16, .y = 0, .pos = 17, .state = 0}, // F1
-    {.x = 24, .y = 0, .pos = 16, .state = 0}, // F2
-    {.x = 32, .y = 0, .pos = 15, .state = 0}, // F3
-    {.x = 40, .y = 0, .pos = 14, .state = 0}, // F4
-    {.x = 52, .y = 0, .pos = 13, .state = 0}, // F5
-    {.x = 60, .y = 0, .pos = 12, .state = 0}, // F6
-    {.x = 68, .y = 0, .pos = 11, .state = 0}, // F7
-    {.x = 76, .y = 0, .pos = 10, .state = 0}, // F8
-    {.x = 88, .y = 0, .pos = 9, .state = 0},  // F9
-    {.x = 96, .y = 0, .pos = 8, .state = 0},  // F10
-    {.x = 104, .y = 0, .pos = 7, .state = 0}, // F11
-    {.x = 112, .y = 0, .pos = 6, .state = 0}, // F12
-    {.x = 122, .y = 0, .pos = 5, .state = 0}, // PrtSc
-    {.x = 130, .y = 0, .pos = 4, .state = 0}, // Scroll Lock
-    {.x = 138, .y = 0, .pos = 3, .state = 0}, // Pause Break
+#define STRIP_X_IDX(i) (2 * i)
+#define STRIP_Y_IDX(i) (2 * i + 1)
 
-    {.x = 0, .y = 12, .pos = 19, .state = 0},   // ~ `
-    {.x = 8, .y = 12, .pos = 20, .state = 0},   // ! 1
-    {.x = 16, .y = 12, .pos = 21, .state = 0},  // @ 2
-    {.x = 24, .y = 12, .pos = 22, .state = 0},  // # 3
-    {.x = 32, .y = 12, .pos = 23, .state = 0},  // $ 4
-    {.x = 40, .y = 12, .pos = 24, .state = 0},  // % 5
-    {.x = 48, .y = 12, .pos = 25, .state = 0},  // ^ 6
-    {.x = 56, .y = 12, .pos = 26, .state = 0},  // & 7
-    {.x = 64, .y = 12, .pos = 27, .state = 0},  // * 8
-    {.x = 72, .y = 12, .pos = 28, .state = 0},  // ( 9
-    {.x = 80, .y = 12, .pos = 29, .state = 0},  // ) 0
-    {.x = 88, .y = 12, .pos = 30, .state = 0},  // _ -
-    {.x = 96, .y = 12, .pos = 31, .state = 0},  // + =
-    {.x = 108, .y = 12, .pos = 32, .state = 0}, // Backspace
-    {.x = 122, .y = 12, .pos = 33, .state = 0}, // Insert
-    {.x = 130, .y = 12, .pos = 34, .state = 0}, // Home
-    {.x = 138, .y = 12, .pos = 35, .state = 0}, // PgUp
-
-    {.x = 2, .y = 20, .pos = 52, .state = 0},   // Tab
-    {.x = 12, .y = 20, .pos = 51, .state = 0},  // Q
-    {.x = 20, .y = 20, .pos = 50, .state = 0},  // W
-    {.x = 28, .y = 20, .pos = 49, .state = 0},  // E
-    {.x = 36, .y = 20, .pos = 48, .state = 0},  // R
-    {.x = 44, .y = 20, .pos = 47, .state = 0},  // T
-    {.x = 52, .y = 20, .pos = 46, .state = 0},  // Y
-    {.x = 60, .y = 20, .pos = 45, .state = 0},  // U
-    {.x = 68, .y = 20, .pos = 44, .state = 0},  // I
-    {.x = 76, .y = 20, .pos = 43, .state = 0},  // O
-    {.x = 84, .y = 20, .pos = 42, .state = 0},  // P
-    {.x = 92, .y = 20, .pos = 41, .state = 0},  // { [
-    {.x = 100, .y = 20, .pos = 40, .state = 0}, // } ]
-    {.x = 110, .y = 20, .pos = 39, .state = 0}, // | Backslash
-    {.x = 122, .y = 20, .pos = 38, .state = 0}, // Delete
-    {.x = 130, .y = 20, .pos = 37, .state = 0}, // End
-    {.x = 138, .y = 20, .pos = 36, .state = 0}, // PgDn
-
-    {.x = 3, .y = 28, .pos = 53, .state = 0},   // Caps Lock
-    {.x = 14, .y = 28, .pos = 54, .state = 0},  // A
-    {.x = 22, .y = 28, .pos = 55, .state = 0},  // S
-    {.x = 30, .y = 28, .pos = 56, .state = 0},  // D
-    {.x = 38, .y = 28, .pos = 57, .state = 0},  // F
-    {.x = 46, .y = 28, .pos = 58, .state = 0},  // G
-    {.x = 54, .y = 28, .pos = 59, .state = 0},  // H
-    {.x = 62, .y = 28, .pos = 60, .state = 0},  // J
-    {.x = 70, .y = 28, .pos = 61, .state = 0},  // K
-    {.x = 78, .y = 28, .pos = 62, .state = 0},  // L
-    {.x = 86, .y = 28, .pos = 63, .state = 0},  // : ;
-    {.x = 94, .y = 28, .pos = 64, .state = 0},  // " '
-    {.x = 107, .y = 28, .pos = 65, .state = 0}, // Enter
-
-    {.x = 5, .y = 36, .pos = 78, .state = 0},   // Shift
-    {.x = 18, .y = 36, .pos = 77, .state = 0},  // Z
-    {.x = 26, .y = 36, .pos = 76, .state = 0},  // X
-    {.x = 34, .y = 36, .pos = 75, .state = 0},  // C
-    {.x = 42, .y = 36, .pos = 74, .state = 0},  // V
-    {.x = 50, .y = 36, .pos = 73, .state = 0},  // B
-    {.x = 58, .y = 36, .pos = 72, .state = 0},  // N
-    {.x = 66, .y = 36, .pos = 71, .state = 0},  // M
-    {.x = 74, .y = 36, .pos = 70, .state = 0},  // < ,
-    {.x = 82, .y = 36, .pos = 69, .state = 0},  // > .
-    {.x = 90, .y = 36, .pos = 68, .state = 0},  // ? /
-    {.x = 105, .y = 36, .pos = 67, .state = 0}, // Shift
-    {.x = 130, .y = 36, .pos = 66, .state = 0}, // ↑
-
-    {.x = 1, .y = 44, .pos = 79, .state = 0},   // Ctrl
-    {.x = 11, .y = 44, .pos = 80, .state = 0},  // Win
-    {.x = 21, .y = 44, .pos = 81, .state = 0},  // Alt
-    {.x = 51, .y = 44, .pos = 83, .state = 0},  // Space
-    {.x = 81, .y = 44, .pos = 85, .state = 0},  // Alt
-    {.x = 91, .y = 44, .pos = 86, .state = 0},  // Win
-    {.x = 101, .y = 44, .pos = 87, .state = 0}, // Menu
-    {.x = 111, .y = 44, .pos = 88, .state = 0}, // Ctrl
-    {.x = 122, .y = 44, .pos = 89, .state = 0}, // ←
-    {.x = 130, .y = 44, .pos = 90, .state = 0}, // ↓
-    {.x = 138, .y = 44, .pos = 91, .state = 0}, // →
-
-    {.x = 138, .y = 6, .pos = 0, .state = 0},   // Notification LED
-    {.x = 130, .y = 6, .pos = 1, .state = 0},   // Notification LED
-    {.x = 122, .y = 6, .pos = 2, .state = 0},   // Notification LED
-    {.x = 36, .y = 44, .pos = 82, .state = 0},  // Space led 1
-    {.x = 66, .y = 44, .pos = 84, .state = 0}}; // Space led 2
+static const uint8_t pixel_locations[ZMK_LEDSTRIP_MAP_LEN] = ZMK_LEDSTRIP_MAP;
+static const uint8_t pixel_index[ZMK_LEDSTRIP_MAP_LEN] = ZMK_LEDSTRIP_INDEX;
 
 static uint8_t pixel_distances[STRIP_NUM_PIXELS][STRIP_NUM_PIXELS];
 static void init_ripple_pixel_distances(void) {
     for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
         for (int j = 0; j < STRIP_NUM_PIXELS; j++) {
-            int dx = pixel_locations[i].x - pixel_locations[j].x;
-            int dy = pixel_locations[i].y - pixel_locations[j].y;
+            int dx = pixel_locations[STRIP_X_IDX(i)] - pixel_locations[STRIP_X_IDX(j)];
+            int dy = pixel_locations[STRIP_Y_IDX(i)] - pixel_locations[STRIP_Y_IDX(j)];
             pixel_distances[i][j] = (uint8_t)round(sqrtf((float)(dx * dx + dy * dy)));
         }
     }
 }
 
-#define RIPPLE_THICKNESS 16
+#define RIPPLE_THICKNESS 8
 
 static void zmk_rgb_underglow_effect_ripple() {
     for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
@@ -326,40 +228,37 @@ static void zmk_rgb_underglow_effect_ripple() {
             if (ripple_effects[j].ticks_passed == 0)
                 continue;
             float pixel_distance;
+            float speed = 1.5;
             pixel_distance = pixel_distances[i][ripple_effects[j].pos];
+            float ripple_distance = ripple_effects[j].ticks_passed * speed;
 
-            if (pixel_distance > ripple_effects[j].ticks_passed - RIPPLE_THICKNESS &&
-                pixel_distance < ripple_effects[j].ticks_passed + RIPPLE_THICKNESS) {
-                int intensity =
-                    BRT_MAX / RIPPLE_THICKNESS *
-                    (RIPPLE_THICKNESS - abs(pixel_distance - ripple_effects[j].ticks_passed));
+            if (pixel_distance > ripple_distance - RIPPLE_THICKNESS &&
+                pixel_distance < ripple_distance + RIPPLE_THICKNESS) {
+                int intensity = BRT_MAX / RIPPLE_THICKNESS *
+                                (RIPPLE_THICKNESS - abs(pixel_distance - ripple_distance));
                 if (first_ripple) {
                     hsb.h = ripple_effects[j].hsb.h;
                     first_ripple = 0;
                 } else {
-                    int diff_left_mixing = abs(hsb.h - ripple_effects[j].hsb.h);
-                    int diff_right_mixing = MIN(hsb.h, ripple_effects[j].hsb.h) + 360 -
-                                            MAX(hsb.h, ripple_effects[j].hsb.h);
-                    if (diff_left_mixing < diff_right_mixing) {
-                        hsb.h = MIN(hsb.h, ripple_effects[j].hsb.h) + diff_left_mixing / 2;
+                    float weight = (float)hsb.b / (float)(hsb.b + intensity);
+                    if (abs(hsb.h - ripple_effects[j].hsb.h) <= HUE_MAX / 2) {
+                        hsb.h = (hsb.h * weight + ripple_effects[j].hsb.h * (1.0 - weight));
                     } else {
-                        hsb.h = MAX(hsb.h, ripple_effects[j].hsb.h) + diff_right_mixing / 2;
+                        int hue_mirrored;
+                        if (hsb.h < ripple_effects[j].hsb.h) {
+                            hue_mirrored = ripple_effects[j].hsb.h - 180;
+                        } else {
+                            hue_mirrored = ripple_effects[j].hsb.h + 180;
+                        }
+                        int diff = hsb.h - (hsb.h * weight + hue_mirrored * (1.0 - weight));
+                        hsb.h = hsb.h - diff;
                     }
                 }
-                if (intensity + hsb.b > BRT_MAX) {
-                    hsb.b = BRT_MAX;
-                    // when we reach maximum brightness for one pixel, we don't
-                    // have to consider the brightness caused by a ripple from
-                    // other keys.
-                    if (hsb.s == 0)
-                        break;
-                } else {
-                    hsb.b += intensity;
-                }
+                hsb.b = CLAMP(intensity + hsb.b, 0, BRT_MAX);
             }
         }
 
-        pixels[pixel_locations[i].pos] = hsb_to_rgb(hsb_scale_min_max(hsb));
+        pixels[pixel_index[i]] = hsb_to_rgb(hsb_scale_min_max(hsb));
     }
     for (int j = 0; j < RIPPLE_EFFECTS_BUF_SIZE; j++) {
         if (ripple_effects[j].ticks_passed > 0) {
@@ -372,13 +271,9 @@ static void zmk_rgb_underglow_effect_ripple() {
 
 static void zmk_rgb_underglow_effect_ripple_handler(int pos) {
     static int ripple_effects_i = 0;
-    pixel_locations[pos].state = 1;
     ripple_effects[ripple_effects_i].pos = pos;
     ripple_effects[ripple_effects_i].ticks_passed = 1;
     ripple_effects[ripple_effects_i].hsb.h = sys_rand32_get() % HUE_MAX;
-    LOG_INF("Ripple update: pos: %d, x: %d, y: %d, led: %d, hue: %d", pos, pixel_locations[pos].x,
-            pixel_locations[pos].y, pixel_locations[pos].pos,
-            ripple_effects[ripple_effects_i].hsb.h);
     ripple_effects_i++;
     if (ripple_effects_i >= RIPPLE_EFFECTS_BUF_SIZE)
         ripple_effects_i = 0;
