@@ -59,6 +59,7 @@ enum rgb_underglow_effect {
     UNDERGLOW_EFFECT_SPECTRUM,
     UNDERGLOW_EFFECT_SWIRL,
     UNDERGLOW_EFFECT_RIPPLE,
+    UNDERGLOW_EFFECT_MATRIX,
     UNDERGLOW_EFFECT_NUMBER // Used to track number of underglow effects
 };
 
@@ -279,6 +280,95 @@ static void zmk_rgb_underglow_effect_ripple_handler(int pos) {
         ripple_effects_i = 0;
 }
 
+#define MAX_ROWS 10
+
+struct pixel_by_rows {
+    uint8_t index[MAX_ROWS][STRIP_NUM_PIXELS];
+    uint8_t row_elements[MAX_ROWS];
+    uint8_t num_rows;
+};
+
+static struct pixel_by_rows pixel_rows = {.index = {0}, .row_elements = {0}, .num_rows = 0};
+
+struct matrix_effect_event {
+    float speed;
+    int ticks_passed;
+    int length;
+};
+
+#define MATRIX_EFFECT_DEFAULT(i, _) {0, 0, 0},
+static struct matrix_effect_event matrix_effects[MAX_ROWS] = {
+    UTIL_LISTIFY(MAX_ROWS, MATRIX_EFFECT_DEFAULT, (, ))};
+
+void init_matrix_effect(void) {
+    // set up the first pixel of the first row
+    pixel_rows.num_rows = 1;
+    pixel_rows.index[pixel_rows.num_rows - 1][pixel_rows.row_elements[pixel_rows.num_rows - 1]] = 0;
+    pixel_rows.row_elements[pixel_rows.num_rows - 1]++;
+    // fill in the rest
+    for (int i = 1; i < STRIP_NUM_PIXELS; i++) {
+        int j;
+        for (j = 0; j < pixel_rows.num_rows; j++) {
+            if (pixel_locations[STRIP_Y_IDX(i)] ==
+                pixel_locations[STRIP_Y_IDX(pixel_rows.index[j][0])]) {
+                break;
+            }
+        }
+        if (j == pixel_rows.num_rows) {
+            if (pixel_rows.num_rows >= MAX_ROWS)
+                break;
+            pixel_rows.num_rows++;
+        }
+        pixel_rows.index[j][pixel_rows.row_elements[j]] = i;
+        LOG_INF("Row %d (Y %d X %d) inx %d: %d", pixel_rows.num_rows,
+                pixel_locations[STRIP_Y_IDX(pixel_rows.index[j][pixel_rows.row_elements[j]])],
+                pixel_locations[STRIP_X_IDX(pixel_rows.index[j][pixel_rows.row_elements[j]])],
+                pixel_rows.row_elements[j], pixel_rows.index[j][pixel_rows.row_elements[j]]);
+        pixel_rows.row_elements[j]++;
+    }
+}
+
+#define MATRIX_EFFECT_GLOW_LENGTH 32
+
+static void zmk_rgb_underglow_effect_matrix() {
+    // create new lines
+    for (int i = 0; i < pixel_rows.num_rows; i++) {
+        if (matrix_effects[i].ticks_passed > 0) {
+            matrix_effects[i].ticks_passed++;
+        } else if (sys_rand32_get() % 40 == 0) {
+            matrix_effects[i].ticks_passed = 1;
+            matrix_effects[i].speed = 1.0 + (sys_rand32_get() % 50) / 10.0;
+            matrix_effects[i].length = sys_rand32_get() % 100 + 20;
+        }
+    }
+
+    // process old lines
+    struct zmk_led_hsb hsb = state.color;
+    for (int i = 0; i < pixel_rows.num_rows; i++) {
+        if (matrix_effects[i].ticks_passed > 0) {
+            for (int j = 0; j < pixel_rows.row_elements[i]; j++) {
+                int x = pixel_locations[STRIP_X_IDX(pixel_rows.index[i][j])];
+                int head_x = (float)matrix_effects[i].ticks_passed * matrix_effects[i].speed;
+                int tail_x = head_x - matrix_effects[i].length;
+                hsb.b = BRT_MAX;
+                if (x == head_x) {
+                    hsb.s = 0;
+                } else if (x >= (head_x - MATRIX_EFFECT_GLOW_LENGTH) && x < head_x) {
+                    hsb.s = (head_x - x) / (float)MATRIX_EFFECT_GLOW_LENGTH * SAT_MAX;
+                } else if (x < (head_x - MATRIX_EFFECT_GLOW_LENGTH) && x >= tail_x) {
+                    hsb.s = SAT_MAX;
+                } else {
+                    hsb.b = 0;
+                }
+                pixels[pixel_index[pixel_rows.index[i][j]]] = hsb_to_rgb(hsb_scale_min_max(hsb));
+                if (tail_x > 138) {
+                    matrix_effects[i].ticks_passed = 0;
+                }
+            }
+        }
+    }
+}
+
 int rgb_underglow_listener(const zmk_event_t *eh) {
     struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
     if (ev->state) {
@@ -310,6 +400,9 @@ static void zmk_rgb_underglow_tick(struct k_work *work) {
         break;
     case UNDERGLOW_EFFECT_RIPPLE:
         zmk_rgb_underglow_effect_ripple();
+        break;
+    case UNDERGLOW_EFFECT_MATRIX:
+        zmk_rgb_underglow_effect_matrix();
         break;
     }
 
@@ -370,6 +463,7 @@ static int zmk_rgb_underglow_init(const struct device *_arg) {
         return -EINVAL;
     }
     init_ripple_pixel_distances();
+    init_matrix_effect();
 
 #if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER)
     ext_power = device_get_binding("EXT_POWER");
