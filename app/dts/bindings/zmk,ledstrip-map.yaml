@@ -1,0 +1,12 @@
+description: |
+  Defines a mapping from keymap logical positions to LED physical positions and order in LED strip
+
+compatible: "zmk,ledstrip-map"
+
+properties:
+  map:
+    type: array
+    required: true
+  strip-index: 
+    type: array
+    required: true
