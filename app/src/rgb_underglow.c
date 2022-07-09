@@ -369,21 +369,6 @@ static void zmk_rgb_underglow_effect_matrix() {
     }
 }
 
-int rgb_underglow_listener(const zmk_event_t *eh) {
-    struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
-    if (ev->state) {
-        switch (state.current_effect) {
-        case UNDERGLOW_EFFECT_RIPPLE:
-            zmk_rgb_underglow_effect_ripple_handler(ev->position);
-            break;
-        }
-    }
-    return ZMK_EV_EVENT_BUBBLE;
-}
-
-ZMK_LISTENER(rgb_underglow, rgb_underglow_listener);
-ZMK_SUBSCRIPTION(rgb_underglow, zmk_position_state_changed);
-
 static void zmk_rgb_underglow_tick(struct k_work *work) {
     switch (state.current_effect) {
     case UNDERGLOW_EFFECT_SOLID:
@@ -723,6 +708,18 @@ static int rgb_underglow_event_listener(const zmk_event_t *eh) {
     }
 #endif
 
+    if (as_zmk_position_state_changed(eh)) {
+        struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
+        if (ev->state) {
+            switch (state.current_effect) {
+            case UNDERGLOW_EFFECT_RIPPLE:
+                zmk_rgb_underglow_effect_ripple_handler(ev->position);
+                break;
+            }
+        }
+    }
+    return ZMK_EV_EVENT_BUBBLE;
+
     return -ENOTSUP;
 }
 
@@ -737,5 +734,7 @@ ZMK_SUBSCRIPTION(rgb_underglow, zmk_activity_state_changed);
 #if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_USB)
 ZMK_SUBSCRIPTION(rgb_underglow, zmk_usb_conn_state_changed);
 #endif
+
+ZMK_SUBSCRIPTION(rgb_underglow, zmk_position_state_changed);
 
 SYS_INIT(zmk_rgb_underglow_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
