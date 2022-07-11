@@ -26,7 +26,6 @@
 #include <zmk/events/usb_conn_state_changed.h>
 #include <zmk/workqueue.h>
 #include <zmk/events/position_state_changed.h>
-#include <zmk/events/position_state_changed.h>
 #include <zmk/events/keycode_state_changed.h>
 #include <zmk/behavior.h>
 #include <zmk/keymap.h>
