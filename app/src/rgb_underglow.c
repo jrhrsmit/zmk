@@ -188,17 +188,11 @@ static void zmk_rgb_underglow_effect_swirl() {
 struct ripple_effect_event {
     uint8_t pos;
     uint8_t ticks_passed;
-    struct zmk_led_hsb hsb;
+    struct led_rgb rgb;
 };
 
-#define RIPPLE_EFFECTS_BUF_SIZE 16
-static struct ripple_effect_event ripple_effects[RIPPLE_EFFECTS_BUF_SIZE] = {
-    {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
-    {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
-    {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
-    {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
-    {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}}, {0, 0, {0, SAT_MAX, BRT_MAX}},
-    {0, 0, {0, SAT_MAX, BRT_MAX}}};
+#define RIPPLE_EFFECTS_BUF_SIZE 32
+static struct ripple_effect_event ripple_effects[RIPPLE_EFFECTS_BUF_SIZE] = {0};
 
 #define STRIP_X_IDX(i) (2 * i)
 #define STRIP_Y_IDX(i) (2 * i + 1)
@@ -219,11 +213,26 @@ static void init_ripple_pixel_distances(void) {
 
 #define RIPPLE_THICKNESS 8
 
+const uint8_t gamma_lut[256] = {
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1,   1,   1,   1,
+    1,   1,   1,   1,   1,   1,   2,   2,   2,   2,   2,   2,   2,   3,   3,   3,   3,   3,   4,
+    4,   4,   4,   5,   5,   5,   5,   6,   6,   6,   6,   7,   7,   7,   8,   8,   8,   9,   9,
+    9,   10,  10,  11,  11,  11,  12,  12,  13,  13,  13,  14,  14,  15,  15,  16,  16,  17,  17,
+    18,  18,  19,  19,  20,  20,  21,  22,  22,  23,  23,  24,  25,  25,  26,  26,  27,  28,  28,
+    29,  30,  30,  31,  32,  33,  33,  34,  35,  35,  36,  37,  38,  39,  39,  40,  41,  42,  43,
+    43,  44,  45,  46,  47,  48,  49,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,
+    61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,  73,  74,  75,  76,  77,  78,  79,  81,
+    82,  83,  84,  85,  87,  88,  89,  90,  91,  93,  94,  95,  97,  98,  99,  100, 102, 103, 105,
+    106, 107, 109, 110, 111, 113, 114, 116, 117, 119, 120, 121, 123, 124, 126, 127, 129, 130, 132,
+    133, 135, 137, 138, 140, 141, 143, 145, 146, 148, 149, 151, 153, 154, 156, 158, 159, 161, 163,
+    165, 166, 168, 170, 172, 173, 175, 177, 179, 181, 182, 184, 186, 188, 190, 192, 194, 196, 197,
+    199, 201, 203, 205, 207, 209, 211, 213, 215, 217, 219, 221, 223, 225, 227, 229, 231, 234, 236,
+    238, 240, 242, 244, 246, 248, 251, 253, 255,
+};
+
 static void zmk_rgb_underglow_effect_ripple() {
     for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
-        bool first_ripple = 1;
-        struct zmk_led_hsb hsb = state.color;
-        hsb.b = 0;
+        struct led_rgb rgb = {0};
         for (int j = 0; j < RIPPLE_EFFECTS_BUF_SIZE; j++) {
             if (ripple_effects[j].ticks_passed == 0)
                 continue;
@@ -234,32 +243,20 @@ static void zmk_rgb_underglow_effect_ripple() {
 
             if (pixel_distance > ripple_distance - RIPPLE_THICKNESS &&
                 pixel_distance < ripple_distance + RIPPLE_THICKNESS) {
-                int intensity = BRT_MAX / RIPPLE_THICKNESS *
-                                (RIPPLE_THICKNESS - abs(pixel_distance - ripple_distance));
-                if (first_ripple) {
-                    hsb.h = ripple_effects[j].hsb.h;
-                    first_ripple = 0;
-                } else {
-                    float weight = (float)hsb.b / (float)(hsb.b + intensity);
-                    if (abs(hsb.h - ripple_effects[j].hsb.h) <= HUE_MAX / 2) {
-                        hsb.h = (hsb.h * weight + ripple_effects[j].hsb.h * (1.0 - weight));
-                    } else {
-                        int hue_mirrored;
-                        if (hsb.h < ripple_effects[j].hsb.h) {
-                            hue_mirrored = ripple_effects[j].hsb.h - 180;
-                        } else {
-                            hue_mirrored = ripple_effects[j].hsb.h + 180;
-                        }
-                        int diff = hsb.h - (hsb.h * weight + hue_mirrored * (1.0 - weight));
-                        hsb.h = hsb.h - diff;
-                    }
-                }
-                hsb.b = CLAMP(intensity + hsb.b, 0, BRT_MAX);
+                float intensity = 1.0 / (float)RIPPLE_THICKNESS *
+                                  (float)(RIPPLE_THICKNESS - abs(pixel_distance - ripple_distance));
+                rgb.r = CLAMP(rgb.r + (int)((float)ripple_effects[j].rgb.r * intensity), 0, 255);
+                rgb.g = CLAMP(rgb.g + (int)((float)ripple_effects[j].rgb.g * intensity), 0, 255);
+                rgb.b = CLAMP(rgb.b + (int)((float)ripple_effects[j].rgb.b * intensity), 0, 255);
             }
         }
 
-        pixels[pixel_index[i]] = hsb_to_rgb(hsb_scale_min_max(hsb));
+        rgb.r = CLAMP(gamma_lut[rgb.r], 0, 255 * CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX / 100);
+        rgb.g = CLAMP(gamma_lut[rgb.g], 0, 255 * CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX / 100);
+        rgb.b = CLAMP(gamma_lut[rgb.b], 0, 255 * CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX / 100);
+        pixels[pixel_index[i]] = rgb;
     }
+
     for (int j = 0; j < RIPPLE_EFFECTS_BUF_SIZE; j++) {
         if (ripple_effects[j].ticks_passed > 0) {
             ripple_effects[j].ticks_passed++;
@@ -271,9 +268,11 @@ static void zmk_rgb_underglow_effect_ripple() {
 
 static void zmk_rgb_underglow_effect_ripple_handler(int pos) {
     static int ripple_effects_i = 0;
+    struct zmk_led_hsb hsb = {0, SAT_MAX, BRT_MAX};
     ripple_effects[ripple_effects_i].pos = pos;
     ripple_effects[ripple_effects_i].ticks_passed = 1;
-    ripple_effects[ripple_effects_i].hsb.h = sys_rand32_get() % HUE_MAX;
+    hsb.h = sys_rand32_get() % HUE_MAX;
+    ripple_effects[ripple_effects_i].rgb = hsb_to_rgb(hsb);
     ripple_effects_i++;
     if (ripple_effects_i >= RIPPLE_EFFECTS_BUF_SIZE)
         ripple_effects_i = 0;
