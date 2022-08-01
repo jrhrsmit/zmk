@@ -191,7 +191,7 @@ struct ripple_effect_event {
     struct led_rgb rgb;
 };
 
-#define RIPPLE_EFFECTS_BUF_SIZE 32
+#define RIPPLE_EFFECTS_BUF_SIZE 24
 static struct ripple_effect_event ripple_effects[RIPPLE_EFFECTS_BUF_SIZE] = {0};
 
 #define STRIP_X_IDX(i) (2 * i)
