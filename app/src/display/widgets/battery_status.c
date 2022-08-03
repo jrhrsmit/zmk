@@ -28,12 +28,18 @@ struct battery_status_state {
 
 static void set_battery_symbol(lv_obj_t *label, struct battery_status_state state) {
     char text[9] = {};
+    const char usb_present[4] = LV_SYMBOL_CHARGE;
+    const char usb_not_present[1] = {0};
+    const char *charging = usb_not_present;
 
     uint8_t level = state.level;
 
 #if IS_ENABLED(CONFIG_USB_DEVICE_STACK)
     if (state.usb_present) {
         strcpy(text, LV_SYMBOL_CHARGE " ");
+        charging = usb_present;
+    } else {
+        charging = usb_not_present;
     }
 #endif /* IS_ENABLED(CONFIG_USB_DEVICE_STACK) */
 
@@ -41,20 +47,20 @@ static void set_battery_symbol(lv_obj_t *label, struct battery_status_state stat
     char perc[5] = {};
     snprintf(perc, sizeof(perc), "%3u%%", level);
     strcat(text, perc);
+    lv_label_set_text(label, text);
 #else
     if (level > 95) {
-        strcat(text, LV_SYMBOL_BATTERY_FULL);
+        lv_label_set_text_fmt(label, "%s %s", charging, LV_SYMBOL_BATTERY_FULL);
     } else if (level > 65) {
-        strcat(text, LV_SYMBOL_BATTERY_3);
+        lv_label_set_text_fmt(label, "%s %s", charging, LV_SYMBOL_BATTERY_3);
     } else if (level > 35) {
-        strcat(text, LV_SYMBOL_BATTERY_2);
+        lv_label_set_text_fmt(label, "%s %s", charging, LV_SYMBOL_BATTERY_2);
     } else if (level > 5) {
-        strcat(text, LV_SYMBOL_BATTERY_1);
+        lv_label_set_text_fmt(label, "%s %s", charging, LV_SYMBOL_BATTERY_1);
     } else {
-        strcat(text, LV_SYMBOL_BATTERY_EMPTY);
+        lv_label_set_text_fmt(label, "%s %s", charging, LV_SYMBOL_BATTERY_EMPTY);
     }
 #endif
-    lv_label_set_text(label, text);
 }
 
 void battery_status_update_cb(struct battery_status_state state) {
