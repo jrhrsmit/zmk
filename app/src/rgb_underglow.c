@@ -318,10 +318,6 @@ void init_matrix_effect(void) {
             pixel_rows.num_rows++;
         }
         pixel_rows.index[j][pixel_rows.row_elements[j]] = i;
-        LOG_INF("Row %d (Y %d X %d) inx %d: %d", pixel_rows.num_rows,
-                pixel_locations[STRIP_Y_IDX(pixel_rows.index[j][pixel_rows.row_elements[j]])],
-                pixel_locations[STRIP_X_IDX(pixel_rows.index[j][pixel_rows.row_elements[j]])],
-                pixel_rows.row_elements[j], pixel_rows.index[j][pixel_rows.row_elements[j]]);
         pixel_rows.row_elements[j]++;
     }
 }
