@@ -12,9 +12,12 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/event_manager.h>
 #include <zmk/endpoints.h>
 #include <zmk/events/position_state_changed.h>
+#include <zmk/matrix_transform.h>
+#include <lvgl.h>
 
-LV_IMG_DECLARE(bongocat_oled_frame_0);
-LV_IMG_DECLARE(bongocat_oled_frame_1);
+LV_IMG_DECLARE(bongocat_oled_64x32_frame_0);
+LV_IMG_DECLARE(bongocat_oled_64x32_frame_1);
+LV_IMG_DECLARE(capslock);
 
 static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 
@@ -27,6 +30,9 @@ struct custom_status_state custom_status_get_state(const zmk_event_t *eh) {
     static struct custom_status_state state = {.bongo_cat_frame = 0, .caps = false};
     if (as_zmk_position_state_changed(eh)) {
         struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
+        if (ev->state == 0 && ev->position == zmk_matrix_transform_row_column_to_position(3, 0)) {
+            state.caps = !state.caps;
+        }
         if (ev->state) {
             state.bongo_cat_frame++;
             if (state.bongo_cat_frame > 1)
@@ -36,19 +42,23 @@ struct custom_status_state custom_status_get_state(const zmk_event_t *eh) {
     return state;
 };
 
-void set_custom_symbol(lv_obj_t *label, struct custom_status_state state) {
+void set_custom_symbol(lv_obj_t *img, struct custom_status_state state) {
     char text[10] = {};
     static int cur_frame = -1;
 
-    if (state.bongo_cat_frame != cur_frame) {
+    if (state.caps && cur_frame != -1) {
+        lv_img_set_src(img, &capslock);
+        cur_frame = -1;
+        LOG_DBG("Drawing bongo cat capslock");
+    } else if (state.bongo_cat_frame != cur_frame) {
         switch (state.bongo_cat_frame) {
         case 0:
-            lv_img_set_src(label, &bongocat_oled_frame_0);
+            lv_img_set_src(img, &bongocat_oled_64x32_frame_0);
             LOG_DBG("Drawing bongo cat frame 0");
             break;
         case 1:
         default:
-            lv_img_set_src(label, &bongocat_oled_frame_1);
+            lv_img_set_src(img, &bongocat_oled_64x32_frame_1);
             LOG_DBG("Drawing bongo cat frame 1");
             break;
         }
@@ -68,7 +78,7 @@ ZMK_SUBSCRIPTION(widget_custom_status, zmk_position_state_changed);
 int zmk_widget_custom_status_init(struct zmk_widget_custom_status *widget, lv_obj_t *parent) {
     widget->obj = lv_img_create(parent, NULL);
 
-    lv_obj_set_size(widget->obj, 128, 32);
+    lv_obj_set_size(widget->obj, 64, 32);
 
     sys_slist_append(&widgets, &widget->node);
 

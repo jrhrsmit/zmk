@@ -50,15 +50,15 @@ static void set_battery_symbol(lv_obj_t *label, struct battery_status_state stat
     lv_label_set_text(label, text);
 #else
     if (level > 95) {
-        lv_label_set_text_fmt(label, "%s %s", charging, LV_SYMBOL_BATTERY_FULL);
+        lv_label_set_text_fmt(label, "%s %d%%", LV_SYMBOL_BATTERY_FULL, level);
     } else if (level > 65) {
-        lv_label_set_text_fmt(label, "%s %s", charging, LV_SYMBOL_BATTERY_3);
+        lv_label_set_text_fmt(label, "%s %d%%", LV_SYMBOL_BATTERY_3, level);
     } else if (level > 35) {
-        lv_label_set_text_fmt(label, "%s %s", charging, LV_SYMBOL_BATTERY_2);
+        lv_label_set_text_fmt(label, "%s %d%%", LV_SYMBOL_BATTERY_2, level);
     } else if (level > 5) {
-        lv_label_set_text_fmt(label, "%s %s", charging, LV_SYMBOL_BATTERY_1);
+        lv_label_set_text_fmt(label, "%s %d%%", LV_SYMBOL_BATTERY_1, level);
     } else {
-        lv_label_set_text_fmt(label, "%s %s", charging, LV_SYMBOL_BATTERY_EMPTY);
+        lv_label_set_text_fmt(label, "%s %d%%", LV_SYMBOL_BATTERY_EMPTY, level);
     }
 #endif
 }
