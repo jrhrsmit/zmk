@@ -51,8 +51,8 @@ lv_obj_t *zmk_display_status_screen() {
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_OUTPUT_STATUS)
     zmk_widget_output_status_init(&output_status_widget, screen);
-    lv_obj_align(zmk_widget_output_status_obj(&output_status_widget), NULL, LV_ALIGN_IN_BOTTOM_LEFT, 0,
-                 0);
+    lv_obj_align(zmk_widget_output_status_obj(&output_status_widget), NULL, LV_ALIGN_IN_BOTTOM_LEFT,
+                 0, 0);
 #endif
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_PERIPHERAL_STATUS)
@@ -75,8 +75,8 @@ lv_obj_t *zmk_display_status_screen() {
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_CUSTOM_STATUS)
     zmk_widget_custom_status_init(&custom_status_widget, screen);
-    lv_obj_align(zmk_widget_custom_status_obj(&custom_status_widget), NULL, LV_ALIGN_IN_TOP_LEFT, 64,
-                 0);
+    lv_obj_align(zmk_widget_custom_status_obj(&custom_status_widget), NULL, LV_ALIGN_IN_TOP_LEFT,
+                 64, 0);
 #endif
     return screen;
 }
