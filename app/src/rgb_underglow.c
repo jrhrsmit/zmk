@@ -211,7 +211,7 @@ static void init_ripple_pixel_distances(void) {
     }
 }
 
-#define RIPPLE_THICKNESS 8
+#define RIPPLE_THICKNESS 16
 
 const uint8_t gamma_lut[256] = {
     0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1,   1,   1,   1,
