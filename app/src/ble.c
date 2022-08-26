@@ -98,7 +98,7 @@ bool zmk_ble_active_profile_is_open() {
 }
 
 void set_profile_address(uint8_t index, const bt_addr_le_t *addr) {
-    char setting_name[15];
+    char setting_name[17] = {0};
     char addr_str[BT_ADDR_LE_STR_LEN];
 
     bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
@@ -611,8 +611,8 @@ static int zmk_ble_init(const struct device *_arg) {
 
     bt_unpair(BT_ID_DEFAULT, NULL);
 
-    for (int i = 0; i < 8; i++) {
-        char setting_name[15];
+    for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
+        char setting_name[17] = {0};
         sprintf(setting_name, "ble/profiles/%d", i);
 
         err = settings_delete(setting_name);

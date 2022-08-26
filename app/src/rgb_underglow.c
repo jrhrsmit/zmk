@@ -286,7 +286,7 @@ struct pixel_by_rows {
     uint8_t num_rows;
 };
 
-static struct pixel_by_rows pixel_rows = {.index = {0}, .row_elements = {0}, .num_rows = 0};
+static struct pixel_by_rows pixel_rows = {.index = {{0}}, .row_elements = {0}, .num_rows = 0};
 
 struct matrix_effect_event {
     float speed;
