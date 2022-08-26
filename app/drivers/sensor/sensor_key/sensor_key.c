@@ -54,7 +54,7 @@ int sensor_key_init(const struct device *dev) {
     struct sensor_key_data *drv_data = dev->data;
     const struct sensor_key_config *drv_cfg = dev->config;
 
-    LOG_ERR("PIN: %s %d", drv_cfg->label, drv_cfg->pin);
+    LOG_DBG("Sensor key pin: %s %d", drv_cfg->label, drv_cfg->pin);
 
     drv_data->pin = device_get_binding(drv_cfg->label);
     if (drv_data->pin == NULL) {
