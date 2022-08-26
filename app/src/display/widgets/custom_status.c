@@ -12,6 +12,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/event_manager.h>
 #include <zmk/endpoints.h>
 #include <zmk/events/position_state_changed.h>
+#include <zmk/events/sensor_event.h>
 #include <zmk/matrix_transform.h>
 #include <lvgl.h>
 
@@ -38,6 +39,11 @@ struct custom_status_state custom_status_get_state(const zmk_event_t *eh) {
             if (state.bongo_cat_frame > 1)
                 state.bongo_cat_frame = 0;
         }
+    }
+    if (as_zmk_sensor_event(eh)) {
+        state.bongo_cat_frame++;
+        if (state.bongo_cat_frame > 1)
+            state.bongo_cat_frame = 0;
     }
     return state;
 };
@@ -73,6 +79,7 @@ void custom_status_update_cb(struct custom_status_state state) {
 ZMK_DISPLAY_WIDGET_LISTENER(widget_custom_status, struct custom_status_state,
                             custom_status_update_cb, custom_status_get_state)
 ZMK_SUBSCRIPTION(widget_custom_status, zmk_position_state_changed);
+ZMK_SUBSCRIPTION(widget_custom_status, zmk_sensor_event);
 
 int zmk_widget_custom_status_init(struct zmk_widget_custom_status *widget, lv_obj_t *parent) {
     widget->obj = lv_img_create(parent, NULL);
