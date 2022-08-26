@@ -7,6 +7,7 @@ target_sources_ifdef(CONFIG_ZMK_WIDGET_PERIPHERAL_STATUS app PRIVATE peripheral_
 target_sources_ifdef(CONFIG_ZMK_WIDGET_LAYER_STATUS app PRIVATE layer_status.c)
 target_sources_ifdef(CONFIG_ZMK_WIDGET_WPM_STATUS app PRIVATE wpm_status.c)
 target_sources_ifdef(CONFIG_ZMK_WIDGET_CUSTOM_STATUS app PRIVATE custom_status.c)
-target_sources_ifdef(CONFIG_ZMK_WIDGET_CUSTOM_STATUS app PRIVATE bongocat/bongocat_oled_64x32_frame_0.c)
-target_sources_ifdef(CONFIG_ZMK_WIDGET_CUSTOM_STATUS app PRIVATE bongocat/bongocat_oled_64x32_frame_1.c)
-target_sources_ifdef(CONFIG_ZMK_WIDGET_CUSTOM_STATUS app PRIVATE bongocat/capslock.c)
+target_sources_ifdef(CONFIG_ZMK_WIDGET_BOOT_SCREEN_STATUS app PRIVATE boot_screen_status.c)
+
+add_subdirectory_ifdef(CONFIG_ZMK_WIDGET_CUSTOM_STATUS bongocat/)
+add_subdirectory_ifdef(CONFIG_ZMK_WIDGET_BOOT_SCREEN_STATUS boot_screen/)

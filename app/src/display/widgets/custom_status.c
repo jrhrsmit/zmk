@@ -43,7 +43,6 @@ struct custom_status_state custom_status_get_state(const zmk_event_t *eh) {
 };
 
 void set_custom_symbol(lv_obj_t *img, struct custom_status_state state) {
-    char text[10] = {};
     static int cur_frame = -1;
 
     if (state.caps && cur_frame != -1) {
