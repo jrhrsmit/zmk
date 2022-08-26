@@ -1,0 +1,14 @@
+description: |
+  Sensor driver for a single key
+
+compatible: "zmk,sensor-key"
+
+properties:
+  label:
+    type: string
+    required: true
+  gpios:
+    type: phandle-array
+    required: true
+    description: The gpio for the input key
+

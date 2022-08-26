@@ -16,7 +16,6 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <lvgl.h>
 
 LV_IMG_DECLARE(suzuki87_boot_screen);
-LV_IMG_DECLARE(suzuki87_boot_screen_off);
 
 void boot_screen_timer_expired_cb(struct k_timer *dummy);
 
@@ -37,7 +36,6 @@ struct boot_screen_status_state boot_screen_status_get_state(const zmk_event_t *
         state.expired = false;
     } else if (as_zmk_activity_state_changed(eh)) {
         struct zmk_activity_state_changed *ev = as_zmk_activity_state_changed(eh);
-        LOG_WRN("Activity state: %s", ev->state ? "on" : "off");
         if (ev->state == false) {
             state.on = true;
             k_timer_start(&boot_screen_timer, K_MSEC(1000), K_NO_WAIT);

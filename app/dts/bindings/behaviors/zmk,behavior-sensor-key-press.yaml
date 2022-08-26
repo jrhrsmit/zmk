@@ -1,0 +1,18 @@
+# Copyright (c) 2020 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Sensor key press/release behavior
+
+compatible: "zmk,behavior-sensor-key-press"
+
+properties:
+  label:
+    type: string
+    required: true
+  "#sensor-binding-cells":
+    type: int
+    required: true
+    const: 1
+
+sensor-binding-cells:
+  - param1
