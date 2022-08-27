@@ -8,6 +8,7 @@ target_sources_ifdef(CONFIG_ZMK_WIDGET_LAYER_STATUS app PRIVATE layer_status.c)
 target_sources_ifdef(CONFIG_ZMK_WIDGET_WPM_STATUS app PRIVATE wpm_status.c)
 target_sources_ifdef(CONFIG_ZMK_WIDGET_CUSTOM_STATUS app PRIVATE custom_status.c)
 target_sources_ifdef(CONFIG_ZMK_WIDGET_BOOT_SCREEN_STATUS app PRIVATE boot_screen_status.c)
+target_sources_ifdef(CONFIG_ZMK_WIDGET_RGB_STATUS app PRIVATE rgb_status.c)
 
 add_subdirectory_ifdef(CONFIG_ZMK_WIDGET_CUSTOM_STATUS bongocat/)
 add_subdirectory_ifdef(CONFIG_ZMK_WIDGET_BOOT_SCREEN_STATUS boot_screen/)

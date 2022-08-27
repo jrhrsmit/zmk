@@ -46,4 +46,9 @@ config ZMK_WIDGET_BOOT_SCREEN_STATUS
     depends on !ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL
     select LVGL_USE_IMG
 
+config ZMK_WIDGET_RGB_STATUS
+    bool "Widget for displaying the RGB backlight status"
+    depends on !ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL
+    select LVGL_USE_LABEL
+
 endmenu

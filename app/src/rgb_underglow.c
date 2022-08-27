@@ -574,6 +574,12 @@ int zmk_rgb_underglow_select_effect(int effect) {
     return zmk_rgb_underglow_save_state();
 }
 
+int zmk_rgb_underglow_get_effect(int *effect) {
+    *effect = state.current_effect;
+
+    return 0;
+}
+
 int zmk_rgb_underglow_cycle_effect(int direction) {
     return zmk_rgb_underglow_select_effect(zmk_rgb_underglow_calc_effect(direction));
 }
@@ -588,6 +594,12 @@ int zmk_rgb_underglow_set_hsb(struct zmk_led_hsb color) {
     }
 
     state.color = color;
+
+    return 0;
+}
+
+int zmk_rgb_underglow_get_hsb(struct zmk_led_hsb *color) {
+    *color = state.color;
 
     return 0;
 }
