@@ -13,6 +13,7 @@
 #include <dt-bindings/zmk/rgb.h>
 #include <zmk/rgb_underglow.h>
 #include <zmk/keymap.h>
+#include <zmk/events/rgb_cmd_event.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -32,12 +33,14 @@ on_keymap_binding_convert_central_state_dependent_params(struct zmk_behavior_bin
             return err;
         }
 
+        ZMK_EVENT_RAISE(new_zmk_rgb_cmd_event((struct zmk_rgb_cmd_event){.cmd = binding->param1}));
         binding->param1 = state ? RGB_OFF_CMD : RGB_ON_CMD;
         break;
     }
     case RGB_BRI_CMD: {
         struct zmk_led_hsb color = zmk_rgb_underglow_calc_brt(1);
 
+        ZMK_EVENT_RAISE(new_zmk_rgb_cmd_event((struct zmk_rgb_cmd_event){.cmd = binding->param1}));
         binding->param1 = RGB_COLOR_HSB_CMD;
         binding->param2 = RGB_COLOR_HSB_VAL(color.h, color.s, color.b);
         break;
@@ -45,6 +48,7 @@ on_keymap_binding_convert_central_state_dependent_params(struct zmk_behavior_bin
     case RGB_BRD_CMD: {
         struct zmk_led_hsb color = zmk_rgb_underglow_calc_brt(-1);
 
+        ZMK_EVENT_RAISE(new_zmk_rgb_cmd_event((struct zmk_rgb_cmd_event){.cmd = binding->param1}));
         binding->param1 = RGB_COLOR_HSB_CMD;
         binding->param2 = RGB_COLOR_HSB_VAL(color.h, color.s, color.b);
         break;
@@ -52,6 +56,7 @@ on_keymap_binding_convert_central_state_dependent_params(struct zmk_behavior_bin
     case RGB_HUI_CMD: {
         struct zmk_led_hsb color = zmk_rgb_underglow_calc_hue(1);
 
+        ZMK_EVENT_RAISE(new_zmk_rgb_cmd_event((struct zmk_rgb_cmd_event){.cmd = binding->param1}));
         binding->param1 = RGB_COLOR_HSB_CMD;
         binding->param2 = RGB_COLOR_HSB_VAL(color.h, color.s, color.b);
         break;
@@ -59,6 +64,7 @@ on_keymap_binding_convert_central_state_dependent_params(struct zmk_behavior_bin
     case RGB_HUD_CMD: {
         struct zmk_led_hsb color = zmk_rgb_underglow_calc_hue(-1);
 
+        ZMK_EVENT_RAISE(new_zmk_rgb_cmd_event((struct zmk_rgb_cmd_event){.cmd = binding->param1}));
         binding->param1 = RGB_COLOR_HSB_CMD;
         binding->param2 = RGB_COLOR_HSB_VAL(color.h, color.s, color.b);
         break;
@@ -66,6 +72,7 @@ on_keymap_binding_convert_central_state_dependent_params(struct zmk_behavior_bin
     case RGB_SAI_CMD: {
         struct zmk_led_hsb color = zmk_rgb_underglow_calc_sat(1);
 
+        ZMK_EVENT_RAISE(new_zmk_rgb_cmd_event((struct zmk_rgb_cmd_event){.cmd = binding->param1}));
         binding->param1 = RGB_COLOR_HSB_CMD;
         binding->param2 = RGB_COLOR_HSB_VAL(color.h, color.s, color.b);
         break;
@@ -73,16 +80,19 @@ on_keymap_binding_convert_central_state_dependent_params(struct zmk_behavior_bin
     case RGB_SAD_CMD: {
         struct zmk_led_hsb color = zmk_rgb_underglow_calc_sat(-1);
 
+        ZMK_EVENT_RAISE(new_zmk_rgb_cmd_event((struct zmk_rgb_cmd_event){.cmd = binding->param1}));
         binding->param1 = RGB_COLOR_HSB_CMD;
         binding->param2 = RGB_COLOR_HSB_VAL(color.h, color.s, color.b);
         break;
     }
     case RGB_EFR_CMD: {
+        ZMK_EVENT_RAISE(new_zmk_rgb_cmd_event((struct zmk_rgb_cmd_event){.cmd = binding->param1}));
         binding->param1 = RGB_EFS_CMD;
         binding->param2 = zmk_rgb_underglow_calc_effect(-1);
         break;
     }
     case RGB_EFF_CMD: {
+        ZMK_EVENT_RAISE(new_zmk_rgb_cmd_event((struct zmk_rgb_cmd_event){.cmd = binding->param1}));
         binding->param1 = RGB_EFS_CMD;
         binding->param2 = zmk_rgb_underglow_calc_effect(1);
         break;

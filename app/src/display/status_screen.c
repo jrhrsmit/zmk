@@ -11,6 +11,7 @@
 #include <zmk/display/widgets/wpm_status.h>
 #include <zmk/display/widgets/custom_status.h>
 #include <zmk/display/widgets/boot_screen_status.h>
+#include <zmk/display/widgets/rgb_status.h>
 #include <zmk/display/status_screen.h>
 
 #include <zephyr/logging/log.h>
@@ -42,6 +43,10 @@ static struct zmk_widget_custom_status custom_status_widget;
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_BOOT_SCREEN_STATUS)
 static struct zmk_widget_boot_screen_status boot_screen_status_widget;
+#endif
+
+#if IS_ENABLED(CONFIG_ZMK_WIDGET_RGB_STATUS)
+static struct zmk_widget_rgb_status rgb_status_widget;
 #endif
 
 lv_obj_t *zmk_display_status_screen() {
@@ -88,6 +93,12 @@ lv_obj_t *zmk_display_status_screen() {
     zmk_widget_boot_screen_status_init(&boot_screen_status_widget, screen);
     lv_obj_align(zmk_widget_boot_screen_status_obj(&boot_screen_status_widget), NULL,
                  LV_ALIGN_IN_TOP_LEFT, 0, 0);
+#endif
+
+#if IS_ENABLED(CONFIG_ZMK_WIDGET_RGB_STATUS)
+    zmk_widget_rgb_status_init(&rgb_status_widget, screen);
+    lv_obj_align(zmk_widget_rgb_status_obj(&rgb_status_widget), NULL,
+                 LV_ALIGN_IN_BOTTOM_LEFT, 0, 0);
 #endif
     return screen;
 }
