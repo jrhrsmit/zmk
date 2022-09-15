@@ -268,7 +268,7 @@ static void zmk_rgb_underglow_effect_ripple() {
 
 static void zmk_rgb_underglow_effect_ripple_handler(int pos) {
     static int ripple_effects_i = 0;
-    struct zmk_led_hsb hsb = {0, SAT_MAX, BRT_MAX};
+    struct zmk_led_hsb hsb = state.color;
     ripple_effects[ripple_effects_i].pos = pos;
     ripple_effects[ripple_effects_i].ticks_passed = 1;
     hsb.h = sys_rand32_get() % HUE_MAX;
