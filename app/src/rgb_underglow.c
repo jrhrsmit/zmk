@@ -59,6 +59,7 @@ enum rgb_underglow_effect {
     UNDERGLOW_EFFECT_SWIRL,
     UNDERGLOW_EFFECT_RIPPLE,
     UNDERGLOW_EFFECT_MATRIX,
+    UNDERGLOW_EFFECT_HEATMAP,
     UNDERGLOW_EFFECT_NUMBER // Used to track number of underglow effects
 };
 
@@ -211,7 +212,7 @@ static void init_ripple_pixel_distances(void) {
     }
 }
 
-#define RIPPLE_THICKNESS 16
+#define RIPPLE_THICKNESS 12
 
 const uint8_t gamma_lut[256] = {
     0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1,   1,   1,   1,
@@ -237,7 +238,7 @@ static void zmk_rgb_underglow_effect_ripple() {
             if (ripple_effects[j].ticks_passed == 0)
                 continue;
             float pixel_distance;
-            float speed = 1.5;
+            float speed = 2;
             pixel_distance = pixel_distances[i][ripple_effects[j].pos];
             float ripple_distance = ripple_effects[j].ticks_passed * speed;
 
@@ -276,6 +277,23 @@ static void zmk_rgb_underglow_effect_ripple_handler(int pos) {
     ripple_effects_i++;
     if (ripple_effects_i >= RIPPLE_EFFECTS_BUF_SIZE)
         ripple_effects_i = 0;
+}
+
+static uint32_t heatmap_hits[STRIP_NUM_PIXELS] = {0};
+static uint32_t heatmap_hits_max = 1;
+
+static void zmk_rgb_underglow_effect_heatmap(void) {
+    for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
+        struct zmk_led_hsb hsb = state.color;
+        hsb.h = 240.0 - (240.0 / (float)heatmap_hits_max) * (float)heatmap_hits[i];
+        pixels[i] = hsb_to_rgb(hsb_scale_min_max(hsb));
+    }
+}
+
+static void zmk_rgb_underglow_effect_heatmap_handler(int pos) {
+	int i = pixel_index[pos];
+    heatmap_hits[i]++;
+    heatmap_hits_max = MAX(heatmap_hits_max, heatmap_hits[i]);
 }
 
 #define MAX_ROWS 10
@@ -329,7 +347,7 @@ static void zmk_rgb_underglow_effect_matrix() {
     for (int i = 0; i < pixel_rows.num_rows; i++) {
         if (matrix_effects[i].ticks_passed > 0) {
             matrix_effects[i].ticks_passed++;
-        } else if (sys_rand32_get() % 40 == 0) {
+        } else if (sys_rand32_get() % 20 == 0) {
             matrix_effects[i].ticks_passed = 1;
             matrix_effects[i].speed = 1.0 + (sys_rand32_get() % 50) / 10.0;
             matrix_effects[i].length = sys_rand32_get() % 100 + 20;
@@ -344,7 +362,6 @@ static void zmk_rgb_underglow_effect_matrix() {
                 int x = pixel_locations[STRIP_X_IDX(pixel_rows.index[i][j])];
                 int head_x = (float)matrix_effects[i].ticks_passed * matrix_effects[i].speed;
                 int tail_x = head_x - matrix_effects[i].length;
-                hsb.b = BRT_MAX;
                 if (x == head_x) {
                     hsb.s = 0;
                 } else if (x >= (head_x - MATRIX_EFFECT_GLOW_LENGTH) && x < head_x) {
@@ -382,6 +399,9 @@ static void zmk_rgb_underglow_tick(struct k_work *work) {
         break;
     case UNDERGLOW_EFFECT_MATRIX:
         zmk_rgb_underglow_effect_matrix();
+        break;
+    case UNDERGLOW_EFFECT_HEATMAP:
+        zmk_rgb_underglow_effect_heatmap();
         break;
     }
 
@@ -720,6 +740,9 @@ static int rgb_underglow_event_listener(const zmk_event_t *eh) {
             switch (state.current_effect) {
             case UNDERGLOW_EFFECT_RIPPLE:
                 zmk_rgb_underglow_effect_ripple_handler(ev->position);
+                break;
+            case UNDERGLOW_EFFECT_HEATMAP:
+                zmk_rgb_underglow_effect_heatmap_handler(ev->position);
                 break;
             }
         }
