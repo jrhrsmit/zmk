@@ -36,7 +36,6 @@ static void set_battery_symbol(lv_obj_t *label, struct battery_status_state stat
 
 #if IS_ENABLED(CONFIG_USB_DEVICE_STACK)
     if (state.usb_present) {
-        strcpy(text, LV_SYMBOL_CHARGE " ");
         charging = usb_present;
     } else {
         charging = usb_not_present;
