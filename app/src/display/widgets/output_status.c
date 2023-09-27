@@ -38,7 +38,7 @@ static struct output_status_state get_state(const zmk_event_t *_eh) {
 }
 
 static void set_status_symbol(lv_obj_t *label, struct output_status_state state) {
-    char text[11] = {0};
+    char text[14] = {0};
 
     switch (state.selected_endpoint) {
     case ZMK_ENDPOINT_USB:
@@ -80,7 +80,7 @@ ZMK_SUBSCRIPTION(widget_output_status, zmk_ble_active_profile_changed);
 #endif
 
 int zmk_widget_output_status_init(struct zmk_widget_output_status *widget, lv_obj_t *parent) {
-    widget->obj = lv_label_create(parent, NULL);
+    widget->obj = lv_label_create(parent);
 
     lv_obj_set_size(widget->obj, 64, 15);
 

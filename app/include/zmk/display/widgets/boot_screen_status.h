@@ -7,7 +7,7 @@
 #pragma once
 
 #include <lvgl.h>
-#include <kernel.h>
+#include <zephyr/kernel.h>
 
 struct zmk_widget_boot_screen_status {
     sys_snode_t node;

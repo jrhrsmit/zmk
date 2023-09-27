@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <devicetree.h>
+#include <zephyr/devicetree.h>
 
 #if DT_HAS_CHOSEN(zmk_ledstrip_map)
 

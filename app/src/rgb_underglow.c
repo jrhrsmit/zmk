@@ -30,7 +30,7 @@
 #include <zmk/behavior.h>
 #include <zmk/keymap.h>
 
-#include <random/rand32.h>
+#include <zephyr/random/rand32.h>
 
 #include <zmk/rgb_underglow.h>
 
@@ -291,7 +291,7 @@ static void zmk_rgb_underglow_effect_heatmap(void) {
 }
 
 static void zmk_rgb_underglow_effect_heatmap_handler(int pos) {
-	int i = pixel_index[pos];
+    int i = pixel_index[pos];
     heatmap_hits[i]++;
     heatmap_hits_max = MAX(heatmap_hits_max, heatmap_hits[i]);
 }
@@ -312,9 +312,10 @@ struct matrix_effect_event {
     int length;
 };
 
-#define MATRIX_EFFECT_DEFAULT(i, _) {0, 0, 0},
+#define MATRIX_EFFECT_DEFAULT(i, _)                                                                \
+    { 0, 0, 0 }
 static struct matrix_effect_event matrix_effects[MAX_ROWS] = {
-    UTIL_LISTIFY(MAX_ROWS, MATRIX_EFFECT_DEFAULT, (, ))};
+    LISTIFY(MAX_ROWS, MATRIX_EFFECT_DEFAULT, (, ))};
 
 void init_matrix_effect(void) {
     // set up the first pixel of the first row
@@ -454,11 +455,11 @@ static struct k_work_delayable underglow_save_work;
 #endif
 
 static int zmk_rgb_underglow_init(const struct device *_arg) {
-    led_strip = device_get_binding(STRIP_LABEL);
+    led_strip = device_get_binding(DT_PROP(STRIP_CHOSEN, label));
     if (led_strip) {
-        LOG_INF("Found LED strip device %s", STRIP_LABEL);
+        LOG_INF("Found LED strip device %s", DT_PROP(STRIP_CHOSEN, label));
     } else {
-        LOG_ERR("LED strip device %s not found", STRIP_LABEL);
+        LOG_ERR("LED strip device %s not found", DT_PROP(STRIP_CHOSEN, label));
         return -EINVAL;
     }
     init_ripple_pixel_distances();

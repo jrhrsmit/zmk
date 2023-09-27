@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include <zmk/display.h>
@@ -12,7 +12,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/event_manager.h>
 #include <zmk/endpoints.h>
 #include <zmk/events/activity_state_changed.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 #include <lvgl.h>
 
 LV_IMG_DECLARE(suzuki87_boot_screen);
@@ -46,9 +46,9 @@ struct boot_screen_status_state boot_screen_status_get_state(const zmk_event_t *
 
 void set_boot_screen_symbol(lv_obj_t *img, struct boot_screen_status_state state) {
     if (state.on) {
-        lv_obj_set_hidden(img, false);
+        lv_obj_clear_flag(img, LV_OBJ_FLAG_HIDDEN);
     } else {
-        lv_obj_set_hidden(img, true);
+        lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -72,15 +72,15 @@ void boot_screen_timer_expired_cb(struct k_timer *dummy) {
 int zmk_widget_boot_screen_status_init(struct zmk_widget_boot_screen_status *widget,
                                        lv_obj_t *parent) {
     lv_style_t style;
-    widget->obj = lv_img_create(parent, NULL);
+    widget->obj = lv_img_create(parent);
 
     lv_obj_set_size(widget->obj, 128, 32);
 
     lv_style_init(&style);
-    lv_style_set_bg_opa(&style, LV_STATE_DEFAULT, LV_OPA_COVER);
+    lv_style_set_bg_opa(&style, LV_OPA_COVER);
 
     lv_img_set_src(widget->obj, &suzuki87_boot_screen);
-    lv_obj_add_style(widget->obj, LV_OBJ_PART_MAIN, &style);
+    lv_obj_add_style(widget->obj, &style, 0);
 
     sys_slist_append(&widgets, &widget->node);
 

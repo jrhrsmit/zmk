@@ -6,15 +6,13 @@
 
 #pragma once
 
-#include <device.h>
-#include <drivers/gpio.h>
-#include <drivers/sensor.h>
-#include <sys/util.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/sys/util.h>
 
 struct sensor_key_config {
-    const char *label;
-    const uint8_t pin;
-    const uint8_t flags;
+    const struct gpio_dt_spec pin;
 };
 
 struct sensor_key_data {

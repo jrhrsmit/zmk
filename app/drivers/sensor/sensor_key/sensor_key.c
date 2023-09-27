@@ -6,13 +6,13 @@
 
 #define DT_DRV_COMPAT zmk_sensor_key
 
-#include <device.h>
-#include <drivers/gpio.h>
-#include <sys/util.h>
-#include <kernel.h>
-#include <drivers/sensor.h>
-#include <sys/__assert.h>
-#include <logging/log.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/sys/__assert.h>
+#include <zephyr/logging/log.h>
 
 #include "sensor_key.h"
 
@@ -24,7 +24,7 @@ static int sensor_key_sample_fetch(const struct device *dev, enum sensor_channel
 
     __ASSERT_NO_MSG(chan == SENSOR_CHAN_ALL || chan == SENSOR_CHAN_VOLTAGE);
 
-    drv_data->state = gpio_pin_get(drv_data->pin, drv_cfg->pin);
+    drv_data->state = gpio_pin_get_dt(&drv_cfg->pin);
 
     return 0;
 }
@@ -54,15 +54,9 @@ int sensor_key_init(const struct device *dev) {
     struct sensor_key_data *drv_data = dev->data;
     const struct sensor_key_config *drv_cfg = dev->config;
 
-    LOG_DBG("Sensor key pin: %s %d", drv_cfg->label, drv_cfg->pin);
+    LOG_DBG("Sensor key pin: %s %d", drv_cfg->pin.port->name, drv_cfg->pin.pin);
 
-    drv_data->pin = device_get_binding(drv_cfg->label);
-    if (drv_data->pin == NULL) {
-        LOG_ERR("Failed to get pointer t oGPIO device");
-        return -EINVAL;
-    }
-
-    if (gpio_pin_configure(drv_data->pin, drv_cfg->pin, drv_cfg->flags | GPIO_INPUT)) {
+    if (gpio_pin_configure_dt(&drv_cfg->pin, GPIO_INPUT)) {
         LOG_DBG("Failed to configure pin");
         return -EIO;
     }
@@ -74,7 +68,7 @@ int sensor_key_init(const struct device *dev) {
     }
 #endif
 
-    drv_data->state = gpio_pin_get(drv_data->pin, drv_cfg->pin);
+    drv_data->state = gpio_pin_get_dt(&drv_cfg->pin);
 
     return 0;
 }
@@ -82,9 +76,7 @@ int sensor_key_init(const struct device *dev) {
 #define SENSOR_KEY_INST(n)                                                                         \
     struct sensor_key_data sensor_key_data_##n;                                                    \
     const struct sensor_key_config sensor_key_cfg_##n = {                                          \
-        .label = DT_INST_GPIO_LABEL(n, gpios),                                                     \
-        .pin = DT_INST_GPIO_PIN(n, gpios),                                                         \
-        .flags = DT_INST_GPIO_FLAGS(n, gpios),                                                     \
+        .pin = GPIO_DT_SPEC_INST_GET(n, gpios),                                                    \
     };                                                                                             \
     DEVICE_DT_INST_DEFINE(n, sensor_key_init, NULL, &sensor_key_data_##n, &sensor_key_cfg_##n,     \
                           POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY, &sensor_key_driver_api);

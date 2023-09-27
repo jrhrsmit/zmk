@@ -6,27 +6,26 @@
 
 #define DT_DRV_COMPAT zmk_sensor_key
 
-#include <device.h>
-#include <drivers/gpio.h>
-#include <sys/util.h>
-#include <kernel.h>
-#include <drivers/sensor.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/sensor.h>
 
 #include "sensor_key.h"
 
 extern struct sensor_key_data sensor_key_driver;
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(sensor_key, CONFIG_SENSOR_LOG_LEVEL);
 
 static inline void setup_int(const struct device *dev, bool enable) {
-    struct sensor_key_data *data = dev->data;
     const struct sensor_key_config *cfg = dev->config;
 
     LOG_DBG("enabled %s", (enable ? "true" : "false"));
 
-    if (gpio_pin_interrupt_configure(data->pin, cfg->pin,
-                                     enable ? GPIO_INT_EDGE_RISING : GPIO_INT_DISABLE)) {
+    if (gpio_pin_interrupt_configure_dt(&cfg->pin,
+                                        enable ? GPIO_INT_EDGE_RISING : GPIO_INT_DISABLE)) {
         LOG_WRN("Unable to set pin GPIO interrupt");
     }
 }
@@ -97,9 +96,9 @@ int sensor_key_init_interrupt(const struct device *dev) {
     drv_data->dev = dev;
     /* setup gpio interrupt */
 
-    gpio_init_callback(&drv_data->gpio_cb, sensor_key_gpio_callback, BIT(drv_cfg->pin));
+    gpio_init_callback(&drv_data->gpio_cb, sensor_key_gpio_callback, BIT(drv_cfg->pin.pin));
 
-    if (gpio_add_callback(drv_data->pin, &drv_data->gpio_cb) < 0) {
+    if (gpio_add_callback(drv_cfg->pin.port, &drv_data->gpio_cb) < 0) {
         LOG_DBG("Failed to set callback!");
         return -EIO;
     }

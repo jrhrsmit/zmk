@@ -6,11 +6,11 @@
 
 #define DT_DRV_COMPAT zmk_behavior_sensor_key_press
 
-#include <device.h>
+#include <zephyr/device.h>
 #include <drivers/behavior.h>
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 
-#include <drivers/sensor.h>
+#include <zephyr/drivers/sensor.h>
 #include <zmk/event_manager.h>
 #include <zmk/events/keycode_state_changed.h>
 
@@ -38,7 +38,7 @@ static int on_sensor_binding_triggered(struct zmk_behavior_binding *binding,
 }
 
 static const struct behavior_driver_api behavior_sensor_key_press_driver_api = {
-    .sensor_binding_triggered = on_sensor_binding_triggered};
+    .sensor_binding_process = on_sensor_binding_triggered};
 
 #define KP_INST(n)                                                                                 \
     DEVICE_DT_INST_DEFINE(n, behavior_sensor_key_press_init, NULL, NULL, NULL, APPLICATION,        \

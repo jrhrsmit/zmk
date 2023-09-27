@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include <zmk/display.h>
@@ -82,7 +82,7 @@ ZMK_SUBSCRIPTION(widget_custom_status, zmk_position_state_changed);
 ZMK_SUBSCRIPTION(widget_custom_status, zmk_sensor_event);
 
 int zmk_widget_custom_status_init(struct zmk_widget_custom_status *widget, lv_obj_t *parent) {
-    widget->obj = lv_img_create(parent, NULL);
+    widget->obj = lv_img_create(parent);
 
     lv_obj_set_size(widget->obj, 64, 32);
 

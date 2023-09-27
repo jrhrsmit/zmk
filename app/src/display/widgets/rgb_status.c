@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include <zmk/display.h>
@@ -12,11 +12,11 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/event_manager.h>
 #include <zmk/events/rgb_cmd_event.h>
 #include <zmk/rgb_underglow.h>
-#include <device.h>
+#include <zephyr/device.h>
 #include <drivers/behavior.h>
 #include <zmk/keymap.h>
 #include <dt-bindings/zmk/rgb.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
 void rgb_timer_expired_cb(struct k_timer *dummy);
 
@@ -87,7 +87,7 @@ struct rgb_status_state rgb_status_get_state(const zmk_event_t *eh) {
 void set_rgb_symbol(lv_obj_t *label, struct rgb_status_state state) {
     char text[10] = {0};
     struct zmk_led_hsb color;
-    uint8_t effect;
+    int effect;
     bool on;
     switch (state.show) {
     case RGB_SHOW_HUE:
@@ -104,7 +104,7 @@ void set_rgb_symbol(lv_obj_t *label, struct rgb_status_state state) {
         break;
     case RGB_SHOW_EFF:
         zmk_rgb_underglow_get_effect(&effect);
-        snprintf(text, 10, "Effect %d", effect);
+        snprintf(text, 10, "Effect %d", effect & 0x7);
         break;
     case RGB_SHOW_ON:
         zmk_rgb_underglow_get_state(&on);
@@ -116,9 +116,9 @@ void set_rgb_symbol(lv_obj_t *label, struct rgb_status_state state) {
     lv_label_set_text(label, text);
 
     if (state.on) {
-        lv_obj_set_hidden(label, false);
+        lv_obj_clear_flag(label, LV_OBJ_FLAG_HIDDEN);
     } else {
-        lv_obj_set_hidden(label, true);
+        lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -139,15 +139,15 @@ void rgb_timer_expired_cb(struct k_timer *dummy) {
 
 int zmk_widget_rgb_status_init(struct zmk_widget_rgb_status *widget, lv_obj_t *parent) {
     lv_style_t style;
-    widget->obj = lv_label_create(parent, NULL);
+    widget->obj = lv_label_create(parent);
 
     lv_obj_set_size(widget->obj, 64, 15);
 
     lv_style_init(&style);
-    lv_style_set_bg_opa(&style, LV_STATE_DEFAULT, LV_OPA_COVER);
-    lv_obj_add_style(widget->obj, LV_OBJ_PART_MAIN, &style);
+    lv_style_set_bg_opa(&style, LV_OPA_COVER);
+    lv_obj_add_style(widget->obj, &style, 0);
 
-    lv_obj_set_hidden(widget->obj, true);
+    lv_obj_add_flag(widget->obj, LV_OBJ_FLAG_HIDDEN);
 
     sys_slist_append(&widgets, &widget->node);
 

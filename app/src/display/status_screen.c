@@ -55,14 +55,12 @@ lv_obj_t *zmk_display_status_screen() {
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_BATTERY_STATUS)
     zmk_widget_battery_status_init(&battery_status_widget, screen);
-    lv_obj_align(zmk_widget_battery_status_obj(&battery_status_widget), NULL, LV_ALIGN_IN_TOP_LEFT,
-                 0, 0);
+    lv_obj_align(zmk_widget_battery_status_obj(&battery_status_widget), LV_ALIGN_TOP_LEFT, 0, 0);
 #endif
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_OUTPUT_STATUS)
     zmk_widget_output_status_init(&output_status_widget, screen);
-    lv_obj_align(zmk_widget_output_status_obj(&output_status_widget), NULL, LV_ALIGN_IN_BOTTOM_LEFT,
-                 0, 0);
+    lv_obj_align(zmk_widget_output_status_obj(&output_status_widget), LV_ALIGN_BOTTOM_LEFT, 0, 0);
 #endif
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_PERIPHERAL_STATUS)
@@ -85,20 +83,18 @@ lv_obj_t *zmk_display_status_screen() {
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_CUSTOM_STATUS)
     zmk_widget_custom_status_init(&custom_status_widget, screen);
-    lv_obj_align(zmk_widget_custom_status_obj(&custom_status_widget), NULL, LV_ALIGN_IN_TOP_LEFT,
-                 64, 0);
+    lv_obj_align(zmk_widget_custom_status_obj(&custom_status_widget), LV_ALIGN_TOP_LEFT, 64, 0);
 #endif
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_BOOT_SCREEN_STATUS)
     zmk_widget_boot_screen_status_init(&boot_screen_status_widget, screen);
-    lv_obj_align(zmk_widget_boot_screen_status_obj(&boot_screen_status_widget), NULL,
-                 LV_ALIGN_IN_TOP_LEFT, 0, 0);
+    lv_obj_align(zmk_widget_boot_screen_status_obj(&boot_screen_status_widget),
+                 LV_ALIGN_TOP_LEFT, 0, 0);
 #endif
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_RGB_STATUS)
     zmk_widget_rgb_status_init(&rgb_status_widget, screen);
-    lv_obj_align(zmk_widget_rgb_status_obj(&rgb_status_widget), NULL,
-                 LV_ALIGN_IN_BOTTOM_LEFT, 0, 0);
+    lv_obj_align(zmk_widget_rgb_status_obj(&rgb_status_widget), LV_ALIGN_BOTTOM_LEFT, 0, 0);
 #endif
     return screen;
 }
