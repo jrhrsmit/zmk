@@ -1,0 +1,28 @@
+# Copyright (c) 2026 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: |
+  Physical positions of the underglow LEDs, used by the position-aware
+  underglow effects (ripple and matrix). Select it with the
+  `zmk,underglow-map` chosen node.
+
+  Entries are in "logical" order: first one entry per key position, in the
+  same order as the keymap, followed by any LEDs that do not sit under a
+  key. The number of entries must equal the `chain-length` of the
+  `zmk,underglow` LED strip.
+
+compatible: "zmk,underglow-map"
+
+properties:
+  positions:
+    type: array
+    required: true
+    description: |
+      One `<x y>` pair per LED, in logical order. Units are arbitrary but
+      must be the same for x and y (e.g. 8 per 1u key); larger y is further
+      down the keyboard.
+  strip-index:
+    type: array
+    required: true
+    description: |
+      For each logical entry, the index of that LED in the LED strip chain.

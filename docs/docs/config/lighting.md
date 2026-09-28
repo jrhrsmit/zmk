@@ -43,16 +43,33 @@ Values for `CONFIG_ZMK_RGB_UNDERGLOW_EFF_START`:
 | 1     | Breathe     |
 | 2     | Spectrum    |
 | 3     | Swirl       |
+| 4     | Ripple      |
+| 5     | Matrix      |
 
 :::note
 The `*_START` settings only determine the initial underglow state. Any changes you make with the [underglow behavior](../keymaps/behaviors/underglow.md) are saved to flash after a one minute delay and will be used after that.
 :::
 
+The Ripple and Matrix effects need to know where each LED is, so they are only available when a `zmk,underglow-map` chosen node is set (see below).
+
 ### Devicetree
 
-ZMK does not have any Devicetree properties of its own. See the Devicetree bindings for [Zephyr's LED strip drivers](https://github.com/zephyrproject-rtos/zephyr/tree/main/dts/bindings/led_strip).
+ZMK does not have any Devicetree properties of its own for the LED strip itself. See the Devicetree bindings for [Zephyr's LED strip drivers](https://github.com/zephyrproject-rtos/zephyr/tree/main/dts/bindings/led_strip).
 
 See the [RGB underglow hardware integration page](../hardware-integration/lighting/underglow.md) for examples of the properties that must be set to enable underglow.
+
+#### Underglow map
+
+Applies to: `compatible = "zmk,underglow-map"`
+
+Definition file: [zmk/app/dts/bindings/zmk,underglow-map.yaml](https://github.com/zmkfirmware/zmk/blob/main/app/dts/bindings/zmk%2Cunderglow-map.yaml)
+
+| Property      | Type  | Description                                                                          |
+| ------------- | ----- | ------------------------------------------------------------------------------------ |
+| `positions`   | array | `<x y>` position of each LED: one per key position in keymap order, then extra LEDs  |
+| `strip-index` | array | Index in the LED strip chain of each entry in `positions`                            |
+
+Both arrays must have one entry per LED in the strip. Select the node with `chosen { zmk,underglow-map = &underglow_map; };` to enable the Ripple and Matrix effects. Ripple starts a ring at the pressed key, so the first entries must follow the keymap's key positions.
 
 ## Backlight
 
